@@ -1,0 +1,29 @@
+# binaries
+/bin/
+/dist/
+
+# go
+*.test
+*.out
+coverage.txt
+vendor/
+
+# runtime data — kept out of git
+/data/
+/cache/
+/state.json
+
+# editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# devcontainer-built deps
+.devcontainer/.cache/

@@ -1,0 +1,33 @@
+{
+  "name": "paperboy",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "ms-azuretools.vscode-docker",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "go.toolsManagement.checkForUpdates": "off",
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "[go]": {
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        }
+      }
+    }
+  },
+  "forwardPorts": [8080],
+  "postCreateCommand": "go mod download",
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=paperboy-go-modcache,target=/go/pkg/mod,type=volume"
+  ]
+}

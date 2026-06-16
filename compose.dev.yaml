@@ -1,0 +1,20 @@
+# Cross-platform dev environment for paperboy.
+# `docker compose -f compose.dev.yaml up --build` gives you a shell with Go and
+# all CGo deps pre-installed. No host installs required beyond Docker itself.
+services:
+  dev:
+    build:
+      context: .devcontainer
+      dockerfile: Dockerfile
+    working_dir: /workspaces/paperboy
+    volumes:
+      - .:/workspaces/paperboy
+      - paperboy-go-modcache:/go/pkg/mod
+    ports:
+      - "8080:8080"
+    environment:
+      PAPERBOY_DATA_DIR: /workspaces/paperboy/data
+    command: ["bash", "-lc", "go run ./cmd/paperboy-server"]
+
+volumes:
+  paperboy-go-modcache:
