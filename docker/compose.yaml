@@ -12,7 +12,6 @@ services:
       - paperboy-data:/data
     environment:
       PAPERBOY_LOG_LEVEL: info
-      # PAPERBOY_CROP_OCR: "true"
 
 volumes:
   paperboy-data:

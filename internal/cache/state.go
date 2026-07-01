@@ -1,8 +1,10 @@
 // Package cache owns the on-disk state and image cache.
 //
 // State is a single JSON file written atomically (tmp + rename). It holds the
-// rotation index, per-source health, and the index of cached images. The cache
-// itself (the actual PNG/PDF bytes) lives next to it on the filesystem.
+// rotation index and per-source health. The cached images themselves (the
+// actual PNG/PDF bytes) live next to it on the filesystem and are discovered by
+// scanning the directory (see FilesystemLookup), so the filesystem — not this
+// JSON — is the source of truth for what's cached.
 package cache
 
 import (
@@ -19,7 +21,6 @@ import (
 type State struct {
 	Rotation Rotation                `json:"rotation"`
 	Sources  map[string]SourceRecord `json:"sources"`
-	Cache    map[string]CacheRecord  `json:"cache"`
 }
 
 // Rotation tracks which source is next.
@@ -34,18 +35,6 @@ type SourceRecord struct {
 	LastErrorMsg   string     `json:"last_error_msg,omitempty"`
 }
 
-// CacheRecord is the per-source cache index keyed by YYYYMMDD.
-type CacheRecord struct {
-	Images map[string]CacheEntry `json:"images"`
-}
-
-// CacheEntry is one cached image on disk.
-type CacheEntry struct {
-	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
-	Bytes     int64     `json:"bytes"`
-}
-
 // Store wraps a State with concurrent-safe access and atomic persistence.
 type Store struct {
 	path string
@@ -58,7 +47,6 @@ func Open(path string) (*Store, error) {
 	s := &Store{path: path}
 	s.st = State{
 		Sources: map[string]SourceRecord{},
-		Cache:   map[string]CacheRecord{},
 	}
 	data, err := os.ReadFile(path)
 	switch {
@@ -72,9 +60,6 @@ func Open(path string) (*Store, error) {
 		}
 		if s.st.Sources == nil {
 			s.st.Sources = map[string]SourceRecord{}
-		}
-		if s.st.Cache == nil {
-			s.st.Cache = map[string]CacheRecord{}
 		}
 	}
 	return s, nil
@@ -133,17 +118,9 @@ func cloneState(in State) State {
 	out := State{
 		Rotation: in.Rotation,
 		Sources:  make(map[string]SourceRecord, len(in.Sources)),
-		Cache:    make(map[string]CacheRecord, len(in.Cache)),
 	}
 	for k, v := range in.Sources {
 		out.Sources[k] = v
-	}
-	for k, v := range in.Cache {
-		images := make(map[string]CacheEntry, len(v.Images))
-		for ik, iv := range v.Images {
-			images[ik] = iv
-		}
-		out.Cache[k] = CacheRecord{Images: images}
 	}
 	return out
 }

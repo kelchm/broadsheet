@@ -118,6 +118,35 @@ func (p *Picker) PickNext(ctx context.Context) (*Result, error) {
 	return nil, ErrNoneAvailable
 }
 
+// PickFor renders one specific source, trying today → yesterday → 2 days ago.
+// Unlike PickNext it does not advance the rotation index and does not fall back
+// to other sources — but it DOES record per-source health, so that direct
+// /paper/{id} traffic keeps the health view and the readiness probe current.
+func (p *Picker) PickFor(ctx context.Context, sourceID string) (*Result, error) {
+	if p.Logger == nil {
+		p.Logger = slog.Default()
+	}
+	src := source.ByID(p.Sources, sourceID)
+	if src == nil {
+		return nil, fmt.Errorf("rotation: unknown source %q", sourceID)
+	}
+
+	pngPath, fetchedAt, daysOld, ok := p.tryDates(ctx, *src)
+	if !ok {
+		p.recordFailure(src.ID, "no paper at any of today/yesterday/2 days ago")
+		return nil, fmt.Errorf("rotation: no usable paper for %s in last 3 days", sourceID)
+	}
+
+	p.recordSuccess(src.ID, fetchedAt)
+	return &Result{
+		SourceID:  src.ID,
+		PNGPath:   pngPath,
+		FetchedAt: fetchedAt,
+		DaysOld:   daysOld,
+		Stale:     false,
+	}, nil
+}
+
 func (p *Picker) tryDates(ctx context.Context, src source.Source) (pngPath string, fetchedAt time.Time, daysOld int, ok bool) {
 	for d := 0; d <= 2; d++ {
 		path, ts, err := p.Fetcher.FetchAndRender(ctx, src, d)

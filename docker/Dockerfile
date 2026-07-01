@@ -1,20 +1,12 @@
-# Production multi-stage build for paperboy-server.
-# Final image carries Go-built binary + runtime C libs (OpenCV, MuPDF, Tesseract).
+# Production build for paperboy-server.
+#
+# go-fitz links MuPDF statically from a bundled archive via cgo, so the build
+# needs a C compiler (already present in the golang image) but NO system PDF or
+# vision libraries. The resulting binary still dynamically links glibc, so the
+# runtime is distroless/cc (glibc + libgcc + ca-certificates) — not scratch.
 
 # --- builder ---------------------------------------------------------------
 FROM golang:1.26-bookworm AS builder
-
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        pkg-config \
-        ca-certificates \
-        libopencv-dev \
-        libmupdf-dev \
-        libtesseract-dev \
-        libleptonica-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
@@ -23,33 +15,24 @@ RUN go mod download
 
 COPY . .
 
+# CGO is required (and on by default) so go-fitz links the bundled MuPDF.
 ENV CGO_ENABLED=1
 RUN go build -trimpath -ldflags="-s -w" -o /out/paperboy-server ./cmd/paperboy-server
 
+# Pre-create the data dir owned by the nonroot runtime uid so a mounted volume
+# inherits writable ownership on first use.
+RUN mkdir -p /data
+
 # --- runtime ---------------------------------------------------------------
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        libopencv-core406 \
-        libopencv-imgcodecs406 \
-        libopencv-imgproc406 \
-        libmupdf-dev \
-        libtesseract5 \
-        libleptonica-dev \
-        tesseract-ocr-eng \
-    && rm -rf /var/lib/apt/lists/*
-
-# Non-root runtime user
-RUN groupadd --system paperboy && useradd --system --gid paperboy --create-home paperboy
-USER paperboy
-WORKDIR /home/paperboy
+FROM gcr.io/distroless/cc-debian12:nonroot
 
 COPY --from=builder /out/paperboy-server /usr/local/bin/paperboy-server
+COPY --from=builder --chown=nonroot:nonroot /data /data
 
 ENV PAPERBOY_PORT=8080 \
     PAPERBOY_DATA_DIR=/data
 VOLUME ["/data"]
 EXPOSE 8080
 
+USER nonroot
 ENTRYPOINT ["/usr/local/bin/paperboy-server"]

@@ -11,6 +11,7 @@ import (
 	"github.com/caarlos0/env/v11"
 	"github.com/spf13/cobra"
 
+	"github.com/kelchm/paperboy/internal/buildinfo"
 	"github.com/kelchm/paperboy/pkg/paperboy"
 )
 
@@ -21,10 +22,11 @@ type cliEnv struct {
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "paperboy",
-		Short: "Newspaper front-page rotator for e-ink displays",
+		Use:     "paperboy",
+		Short:   "Newspaper front-page rotator for e-ink displays",
+		Version: buildinfo.Version,
 		Long: `paperboy fetches newspaper front pages from freedomforum.org, rasterizes
-them, optionally smart-crops them, and serves them on rotation.
+them, and serves them on rotation.
 
 This CLI is for ops/debug. The server lives in cmd/paperboy-server.`,
 	}

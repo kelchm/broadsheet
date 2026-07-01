@@ -1,12 +1,10 @@
-// Package crop implements smart alignment of newspaper front pages.
+// Package crop is the seam for smart alignment of newspaper front pages.
 //
-// The interface here is the boundary between the orchestrator and the actual
-// detection algorithm. Two implementations are planned:
-//
-//   - Noop:     returns the input unchanged. Used as a baseline + when CV deps
-//     are not available.
-//   - OpenCV:   uses gocv for whitespace trim, masthead band detection, and
-//     optional OCR-confirmed crop. The real "smart" crop.
+// The Cropper interface is the boundary between the orchestrator and a
+// detection algorithm. The only implementation today is Noop, which returns
+// the input unchanged; it is what the engine wires up by default. A real
+// masthead/content-boundary detector can be added behind this interface later
+// without changing any callers.
 package crop
 
 import (
@@ -35,9 +33,9 @@ type Cropper interface {
 	Crop(ctx context.Context, inPath, outPath string, hints Hints) (Result, error)
 }
 
-// Noop is the placeholder Cropper. It copies (or no-ops, if paths match) and
-// returns Applied=false. Useful when the OpenCV-based cropper is unavailable
-// or disabled.
+// Noop is the passthrough Cropper. It copies (or no-ops, if paths match) and
+// returns Applied=false. It is the default until a real detector is wired up
+// behind the Cropper interface.
 type Noop struct{}
 
 // Crop implements Cropper by copying inPath to outPath (or doing nothing if

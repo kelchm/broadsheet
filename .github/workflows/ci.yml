@@ -14,11 +14,8 @@ jobs:
         with:
           go-version: "1.26"
           cache: true
-      - name: install CGo deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config libopencv-dev libmupdf-dev libtesseract-dev libleptonica-dev
+      # No system libraries needed: go-fitz links MuPDF statically from a
+      # bundled archive via cgo, and the runner already has a C compiler.
       - name: build
         run: go build ./...
       - name: test
@@ -32,11 +29,6 @@ jobs:
         with:
           go-version: "1.26"
           cache: true
-      - name: install CGo deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config libopencv-dev libmupdf-dev libtesseract-dev libleptonica-dev
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.62.2
+          version: v2.12.2

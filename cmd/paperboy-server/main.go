@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/kelchm/paperboy/internal/buildinfo"
 	"github.com/kelchm/paperboy/pkg/paperboy"
 )
 
@@ -26,10 +27,17 @@ type envConfig struct {
 	DataDir  string `env:"PAPERBOY_DATA_DIR" envDefault:"./data"`
 	Width    int    `env:"PAPERBOY_WIDTH" envDefault:"1600"`
 	LogLevel string `env:"PAPERBOY_LOG_LEVEL" envDefault:"info"`
-	CropOCR  bool   `env:"PAPERBOY_CROP_OCR" envDefault:"false"`
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--version", "-v", "version":
+			fmt.Println("paperboy-server", buildinfo.Version)
+			return
+		}
+	}
+
 	var ec envConfig
 	if err := env.Parse(&ec); err != nil {
 		fmt.Fprintln(os.Stderr, "config:", err)
@@ -46,7 +54,6 @@ func main() {
 	p, err := paperboy.New(paperboy.Config{
 		DataDir: ec.DataDir,
 		Width:   ec.Width,
-		CropOCR: ec.CropOCR,
 		Logger:  logger,
 	})
 	if err != nil {
@@ -74,7 +81,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("paperboy-server listening", "addr", addr, "data_dir", ec.DataDir)
+		logger.Info("paperboy-server listening", "addr", addr, "version", buildinfo.Version, "data_dir", ec.DataDir)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server stopped", "err", err)
 			os.Exit(1)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/disintegration/imaging"
 	"github.com/gen2brain/go-fitz"
@@ -50,14 +51,29 @@ func (f *FitzRasterizer) Rasterize(_ context.Context, pdfPath, pngPath string, w
 	gray := imaging.Grayscale(img)
 	resized := imaging.Resize(gray, width, 0, imaging.Lanczos)
 
-	out, err := os.Create(pngPath)
+	// Write atomically: encode to a temp file in the destination directory,
+	// then rename into place. This guarantees a concurrent reader (or a second
+	// render of the same source) never observes a half-written PNG.
+	tmp, err := os.CreateTemp(filepath.Dir(pngPath), ".png-*.tmp")
 	if err != nil {
-		return fmt.Errorf("rasterize: create png %s: %w", pngPath, err)
+		return fmt.Errorf("rasterize: tmp file: %w", err)
 	}
-	defer out.Close()
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }() // no-op once renamed
 
-	if err := imaging.Encode(out, resized, imaging.PNG); err != nil {
+	if err := imaging.Encode(tmp, resized, imaging.PNG); err != nil {
+		_ = tmp.Close()
 		return fmt.Errorf("rasterize: encode png: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("rasterize: sync png: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("rasterize: close png: %w", err)
+	}
+	if err := os.Rename(tmpName, pngPath); err != nil {
+		return fmt.Errorf("rasterize: rename png %s: %w", pngPath, err)
 	}
 	return nil
 }

@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/kelchm/paperboy/internal/buildinfo"
 )
 
 // ErrNotFound is returned when the upstream returns 404 for a given source/date.
@@ -25,7 +27,7 @@ type Fetcher struct {
 func New() *Fetcher {
 	return &Fetcher{
 		Client:    &http.Client{Timeout: 30 * time.Second},
-		UserAgent: "paperboy/0.1 (+https://github.com/kelchm/paperboy)",
+		UserAgent: buildinfo.UserAgent(),
 	}
 }
 

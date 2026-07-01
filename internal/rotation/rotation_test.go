@@ -148,6 +148,59 @@ func TestPickNext_AllFailAndNoCache_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestPickFor_RecordsSuccessAndDoesNotAdvance(t *testing.T) {
+	srcs := []source.Source{{ID: "a"}, {ID: "b"}}
+	now := time.Now()
+	store := newStore(t)
+	p := &Picker{
+		Sources: srcs,
+		Store:   store,
+		Fetcher: &fakeFetcher{results: map[string]map[int]fakeResult{
+			"b": {0: {path: "/cache/b/today.png", at: now}},
+		}},
+	}
+	res, err := p.PickFor(context.Background(), "b")
+	if err != nil {
+		t.Fatalf("PickFor: %v", err)
+	}
+	if res.SourceID != "b" || res.Stale {
+		t.Errorf("got %+v, want b/!stale", res)
+	}
+	snap := store.Snapshot()
+	if snap.Rotation.NextIndex != 0 {
+		t.Errorf("PickFor advanced rotation to %d, want 0 (must not advance)", snap.Rotation.NextIndex)
+	}
+	if snap.Sources["b"].LastFetchOK == nil {
+		t.Errorf("PickFor did not record success health for b")
+	}
+}
+
+func TestPickFor_NoPaper_RecordsFailure(t *testing.T) {
+	store := newStore(t)
+	p := &Picker{
+		Sources: []source.Source{{ID: "a"}},
+		Store:   store,
+		Fetcher: &fakeFetcher{}, // "a" has no paper
+	}
+	if _, err := p.PickFor(context.Background(), "a"); err == nil {
+		t.Fatal("expected error when no paper is available")
+	}
+	if store.Snapshot().Sources["a"].LastFetchError == nil {
+		t.Errorf("PickFor did not record failure health for a")
+	}
+}
+
+func TestPickFor_UnknownSource(t *testing.T) {
+	p := &Picker{
+		Sources: []source.Source{{ID: "a"}},
+		Store:   newStore(t),
+		Fetcher: &fakeFetcher{},
+	}
+	if _, err := p.PickFor(context.Background(), "nope"); err == nil {
+		t.Fatal("expected error for unknown source")
+	}
+}
+
 func TestPickNext_AdvancesRotation(t *testing.T) {
 	srcs := []source.Source{{ID: "a"}, {ID: "b"}, {ID: "c"}}
 	now := time.Now()

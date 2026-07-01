@@ -17,7 +17,9 @@ This is a Go rewrite of [newsprint](https://github.com/kelchm/newsprint), with t
 git clone git@github.com:kelchm/paperboy.git && cd paperboy
 
 # option A: native (macOS) — fastest local dev loop
-brew install opencv mupdf tesseract pkg-config
+# Only a C compiler is required (cgo links the MuPDF that ships bundled with
+# go-fitz); no other system libraries are needed.
+xcode-select --install       # one-time; skip if already installed
 mise install                 # picks up .mise.toml; installs Go
 make run                     # builds and runs the server on :8080
 
@@ -39,7 +41,7 @@ internal/            implementation, not importable externally
   source/              source registry (NYT, WP, etc.)
   fetch/               PDF fetcher
   rasterize/           PDF → image
-  crop/                smart alignment / masthead detection
+  crop/                alignment seam (passthrough today; detector goes here)
   cache/               filesystem images + atomic JSON state
   rotation/            pick-next + cross-source graceful fallback
 pkg/paperboy/        public API for embedded use
@@ -111,7 +113,6 @@ All config is via environment variables (validated at startup):
 | `PAPERBOY_DATA_DIR` | `./data` | Where cached images and state.json live |
 | `PAPERBOY_WIDTH` | `1600` | **Master** width in pixels — the cache/quality ceiling. Per-request `?w=` resizes down from here. |
 | `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
-| `PAPERBOY_CROP_OCR` | `false` | Enable optional OCR-based masthead refinement |
 
 ## Sources
 

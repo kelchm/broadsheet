@@ -25,6 +25,7 @@ import (
 
 	"github.com/disintegration/imaging"
 
+	"github.com/kelchm/paperboy/internal/buildinfo"
 	"github.com/kelchm/paperboy/internal/cache"
 	"github.com/kelchm/paperboy/internal/crop"
 	"github.com/kelchm/paperboy/internal/fetch"
@@ -32,6 +33,9 @@ import (
 	"github.com/kelchm/paperboy/internal/rotation"
 	"github.com/kelchm/paperboy/internal/source"
 )
+
+// Version reports the paperboy release version.
+func Version() string { return buildinfo.Version }
 
 // Source describes a newspaper feed. Alias of the internal canonical type.
 type Source = source.Source
@@ -51,10 +55,6 @@ type Config struct {
 	// Sources optionally overrides the default source registry.
 	// If nil, the built-in registry is used.
 	Sources []Source
-
-	// CropOCR enables the optional OCR-confirmed masthead detection pass.
-	// Default false (heuristic-only crop, or Noop if OpenCV isn't built in).
-	CropOCR bool
 
 	// Logger; if nil, slog.Default() is used.
 	Logger *slog.Logger
@@ -177,21 +177,14 @@ func (p *Paperboy) RenderNext(ctx context.Context, opts ...RenderOptions) (*Resu
 }
 
 // RenderFor returns a render for a specific source. Does not advance the
-// rotation index.
+// rotation index, and does not fall back to other sources, but it does record
+// per-source health.
 func (p *Paperboy) RenderFor(ctx context.Context, sourceID string, opts ...RenderOptions) (*Result, error) {
-	src := source.ByID(p.sources, sourceID)
-	if src == nil {
-		return nil, fmt.Errorf("paperboy: unknown source %q", sourceID)
+	r, err := p.picker.PickFor(ctx, sourceID)
+	if err != nil {
+		return nil, err
 	}
-	for d := 0; d <= 2; d++ {
-		path, ts, err := p.pipeline.FetchAndRender(ctx, *src, d)
-		if err == nil {
-			return p.readResult(&rotation.Result{
-				SourceID: sourceID, PNGPath: path, FetchedAt: ts, DaysOld: d,
-			}, optsOrDefault(opts))
-		}
-	}
-	return nil, fmt.Errorf("paperboy: no usable paper for %s in last 3 days", sourceID)
+	return p.readResult(r, optsOrDefault(opts))
 }
 
 func optsOrDefault(opts []RenderOptions) RenderOptions {

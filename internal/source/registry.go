@@ -6,8 +6,8 @@ package source
 // per-paper code in the PDF URL, e.g. NY_NYT for The New York Times.
 //
 // Adding a new paper: drop in a new Source{} entry. The fetcher and renderer
-// don't need any other changes; the smart crop will tune itself per source
-// using CropHints.MastheadText if provided.
+// need no other changes. CropHints is carried through to the crop seam for a
+// future masthead detector; the current passthrough crop ignores it.
 func Default() []Source {
 	return []Source{
 		{

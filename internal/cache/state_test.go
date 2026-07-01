@@ -16,8 +16,8 @@ func TestOpenFreshState(t *testing.T) {
 	if snap.Rotation.NextIndex != 0 {
 		t.Errorf("fresh NextIndex = %d, want 0", snap.Rotation.NextIndex)
 	}
-	if snap.Sources == nil || snap.Cache == nil {
-		t.Errorf("fresh state has nil maps")
+	if snap.Sources == nil {
+		t.Errorf("fresh state has nil Sources map")
 	}
 }
 

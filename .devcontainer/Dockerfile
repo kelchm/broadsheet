@@ -8,26 +8,18 @@ FROM golang:1.26-bookworm
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# CGo system deps: OpenCV (gocv), MuPDF (go-fitz), Tesseract (gosseract)
-# plus general build tools.
+# go-fitz links MuPDF statically from a bundled archive via cgo, so we only
+# need a C toolchain — no system PDF/vision libraries.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
-        pkg-config \
         ca-certificates \
         git \
         curl \
-        libopencv-dev \
-        libmupdf-dev \
-        mupdf-tools \
-        libtesseract-dev \
-        libleptonica-dev \
-        tesseract-ocr \
-        tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
-# golangci-lint
+# golangci-lint (v2 — matches .golangci.yml's `version: "2"` schema)
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
-    | sh -s -- -b /usr/local/bin v1.62.2
+    | sh -s -- -b /usr/local/bin v2.12.2
 
 # Non-root user for devcontainer (matches devcontainer.json remoteUser)
 ARG USERNAME=vscode
