@@ -2,121 +2,146 @@
 
 Fetches newspaper front pages and rotates them on a display.
 
-Built for wall-mounted e-ink displays (the original use case is a Visionect 13" screen). Works as a self-contained HTTP server, an embeddable Go library, or the backing service for a TRMNL plugin.
+I built it for a wall-mounted e-ink display — originally a Visionect 13". It runs as a standalone HTTP server, an embeddable Go library, or the backend for a TRMNL plugin.
 
-This is a Go rewrite of [newsprint](https://github.com/kelchm/newsprint), with three goals beyond the original:
+It's inspired by [newsprint](https://github.com/graiz/newsprint), with a few things that one didn't do:
 
-- **Graceful failure.** When a feed is down, fall back across sources instead of showing "Newspaper File Not Found".
-- **Smart crop.** Detect the masthead and content boundary automatically instead of hand-tuned per-source CSS offsets.
-- **Library + server split.** The same engine powers the standalone HTTP service and embedded use cases.
+- Serves from a local archive, so a paper being down doesn't leave you looking at "Newspaper File Not Found".
+- Fetches in the background on a schedule whether or not anyone's asking, and keeps a few days of history. Requests just read from disk — nothing's fetched in the request path.
+- One engine behind both the server and the library.
+
+There's a longer write-up in [docs/architecture.md](docs/architecture.md).
 
 ## Quick start
 
 ```sh
-# clone
 git clone git@github.com:kelchm/paperboy.git && cd paperboy
 
-# option A: native (macOS) — fastest local dev loop
-# Only a C compiler is required (cgo links the MuPDF that ships bundled with
-# go-fitz); no other system libraries are needed.
-xcode-select --install       # one-time; skip if already installed
-mise install                 # picks up .mise.toml; installs Go
+# native (macOS) — fastest dev loop. You just need a C compiler; cgo links the
+# MuPDF that ships bundled with go-fitz, and nothing else.
+xcode-select --install       # one-time, skip if you already have it
+mise install                 # installs the Go version from .mise.toml
 make run                     # builds and runs the server on :8080
 
-# option B: dev container — zero host installs (cross-platform)
-# VS Code: "Reopen in Container"
-# Or:
+# or a dev container, if you'd rather not install anything on the host:
 docker compose -f compose.dev.yaml up --build
 ```
 
-Open <http://localhost:8080/current.png>.
+Then open <http://localhost:8080/current.png>.
 
-## Architecture
+## How it works
+
+Fetching and serving are separate. A background loop mirrors upstream into a local archive, and the HTTP handlers only ever read from that archive — they never fetch. That's the whole idea: requests are fast, and upstream being flaky doesn't land in the request path.
 
 ```
 cmd/
-  paperboy/          CLI binary (debug: fetch, list, crop preview)
-  paperboy-server/   HTTP server binary
-internal/            implementation, not importable externally
-  source/              source registry (NYT, WP, etc.)
-  fetch/               PDF fetcher
-  rasterize/           PDF → image
-  crop/                alignment seam (passthrough today; detector goes here)
-  cache/               filesystem images + atomic JSON state
-  rotation/            pick-next + cross-source graceful fallback
-pkg/paperboy/        public API for embedded use
+  paperboy/          CLI (debug: fetch, list, health)
+  paperboy-server/   the HTTP server
+internal/            not importable from outside
+  source/              the core contracts: Source, Provider, Edition
+  provider/            upstream drivers (freedomforum/ is the first)
+  registry/            the built-in source list
+  reconcile/           the background loop: poll -> archive -> prune
+  archive/             durable PDF store, keyed by edition date
+  render/              archived artifact -> master-width PNG
+  rasterize/           PDF -> image (go-fitz / MuPDF)
+  cache/               small JSON state file (per-source health + ETags)
+pkg/paperboy/        the public API, for embedding
 docker/              production Dockerfile + compose
-.devcontainer/       VS Code dev container definition
+.devcontainer/       VS Code dev container
 ```
 
-### Request flow
+### The background loop (every `PAPERBOY_POLL_INTERVAL`)
+
+```
+for each source:
+  provider.Poll()      conditional GET the 3 day-of-month folders that could
+                       hold a current edition (UTC yesterday/today/tomorrow)
+    304 = unchanged    404 = nothing there    200 = a new edition
+  archive anything new (filed under its Last-Modified date)
+  prune editions older than PAPERBOY_ARCHIVE_DAYS
+```
+
+### Serving a request (no network)
 
 ```
 GET /current.png
-  → rotation.PickNext()                  → sourceId
-  → fetch + rasterize + crop             → image
-       ↓ (404 from feed)
-       try yesterday, then 2 days ago
-       ↓ (all dates fail for this source)
-       mark source unhealthy, advance rotation, try the next source
-       ↓ (all sources fail)
-       serve the most recently cached image from any source with a staleness header
+  slot    = (now / PAPERBOY_ROTATE_INTERVAL) mod number-of-sources
+  edition = newest archived edition for that source
+       |  (nothing archived for it yet)
+       -> newest edition from any source, with X-Paperboy-Stale: true
+       |  (archive is completely empty — cold start only)
+       -> 503
+  render, resize, done
 ```
 
-You should never see "Not Found." That's the bug fix.
+Once the archive has anything in it you shouldn't see a "Not Found". That was the point of the rewrite.
 
-## HTTP endpoints
+## Endpoints
 
-| Endpoint | Description |
+| Endpoint | What it does |
 |---|---|
-| `GET /current.png` | The current rotation slot, advancing each call |
-| `GET /paper/{id}.png` | Render a specific source by id |
-| `GET /sources` | JSON list of configured sources + health |
-| `GET /health` | Liveness probe (always 200 if process is up) |
-| `GET /healthz` | Readiness probe (200 only when at least one source has a usable image) |
+| `GET /current.png` | The current rotation slot. It's time-based, so hitting it repeatedly is a safe read — it doesn't advance. |
+| `GET /paper/{id}.png` | The newest archived edition for one source. |
+| `GET /sources` | JSON: the configured sources and their health. |
+| `GET /health` | Liveness — 200 as long as the process is up. |
+| `GET /healthz` | Readiness — 200 once there's at least one edition archived. |
 
-Image endpoints accept a `?w=<int>` query param to control output width (see *Sizing* below). The response includes `X-Paperboy-Source`, `X-Paperboy-Width`, `X-Paperboy-Height`, and `X-Paperboy-Days-Old` headers; if the image is a stale fallback (because no live fetch succeeded), `X-Paperboy-Stale: true` is also set.
+Image endpoints take `?w=<int>` for the output width (see [Sizing](#sizing)). Every response carries `X-Paperboy-Source`, `-Width`, `-Height`, and `-Days-Old`, plus `X-Paperboy-Stale: true` if the slot's source had nothing and you got a fallback from another one.
 
 ## Sizing
 
-The client controls output dimensions, not the server. This is important because the same paperboy instance can serve a 13" Visionect, a TRMNL, a browser preview, and a Home Assistant card — each with different pixel budgets.
+The client picks the size, not the server. One instance might feed a 13" Visionect, a TRMNL, a browser tab, and a Home Assistant card, and they all want different widths — so it's a per-request thing.
 
-- **Master width** (`PAPERBOY_WIDTH`, default 1600px): the resolution we rasterize and cache at. This is the *quality ceiling* — render once, slice many ways.
-- **Output width** (`?w=<int>` per request): the actual width the client wants. The server resizes the cached master down to this. Aspect ratio is always preserved; height is auto-computed.
-- **Upscaling is rejected.** Requests for an output width larger than the master are silently capped at the master to avoid text-softening artifacts.
+- `PAPERBOY_WIDTH` (default 1600) is the *master* width: what we rasterize and cache at. Treat it as the quality ceiling.
+- `?w=<int>` resizes down from the master, per request. Aspect ratio's kept; height follows.
+- Ask for more than the master and you just get the master back — upscaling only softens the text.
 
 ```sh
 curl http://localhost:8080/current.png            # master width (1600px)
 curl http://localhost:8080/current.png?w=800      # 800px wide, height proportional
-curl http://localhost:8080/paper/ny-nyt.png?w=480 # specific source, 480px wide
+curl http://localhost:8080/paper/ny-nyt.png?w=480 # a specific source, 480px wide
 ```
 
-## Embedding as a library
+## Embedding
 
 ```go
 import "github.com/kelchm/paperboy/pkg/paperboy"
 
 p, _ := paperboy.New(paperboy.Config{DataDir: "./data"})
 
-res, err := p.RenderNext(ctx)                                              // master width
-res, err := p.RenderNext(ctx, paperboy.RenderOptions{OutputWidth: 800})    // resized
-// res.Image is PNG bytes; res.Width / res.Height carry actual dimensions
+// Kick off the background mirror so the archive stays current. Without this the
+// engine is passive — it only serves what's already on disk.
+p.StartReconciler(ctx)
+
+res, err := p.RenderCurrent(ctx)                                           // master width
+res, err := p.RenderCurrent(ctx, paperboy.RenderOptions{OutputWidth: 800}) // resized
+// res.Image is PNG bytes; res.Width / res.Height are the actual dimensions
 ```
 
 ## Configuration
 
-All config is via environment variables (validated at startup):
+Everything's an env var:
 
-| Var | Default | Description |
+| Var | Default | What it does |
 |---|---|---|
-| `PAPERBOY_PORT` | `8080` | HTTP listen port |
-| `PAPERBOY_DATA_DIR` | `./data` | Where cached images and state.json live |
-| `PAPERBOY_WIDTH` | `1600` | **Master** width in pixels — the cache/quality ceiling. Per-request `?w=` resizes down from here. |
+| `PAPERBOY_PORT` | `8080` | HTTP port |
+| `PAPERBOY_DATA_DIR` | `./data` | Holds `archive/` (PDFs), `cache/` (PNGs), and `state.json` |
+| `PAPERBOY_WIDTH` | `1600` | Master width — what we cache at. `?w=` resizes down from here. |
+| `PAPERBOY_POLL_INTERVAL` | `30m` | How often the background loop checks upstream |
+| `PAPERBOY_ROTATE_INTERVAL` | `1h` | How long each source stays the `/current.png` slot |
+| `PAPERBOY_ARCHIVE_DAYS` | `14` | How many days of editions to keep |
 | `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
 ## Sources
 
-Newspaper front pages come from [freedomforum.org](https://www.freedomforum.org/todaysfrontpages/)'s daily archive. Sources are declared in [`internal/source/registry.go`](internal/source/registry.go). Adding a new paper is a one-line entry; the prefix comes from the Freedom Forum URL.
+Front pages come from [freedomforum.org](https://www.freedomforum.org/todaysfrontpages/)'s daily archive. The built-in list lives in [`internal/registry/registry.go`](internal/registry/registry.go) — a paper is a one-liner binding an ID to a provider (`FreedomForum{Prefix: …}`), where the prefix is the code from the Freedom Forum URL. A source on some other site gets a new [provider](internal/provider/).
+
+Worth knowing: Freedom Forum only keeps about two days live, so the archive fills in over time as paperboy runs. It can't go back and grab history that's already rolled off upstream.
+
+## Not done yet
+
+Smart crop. Right now a front page is served whole, exactly as the PDF rasterizes. The plan is to detect each paper's masthead and content edges and frame it automatically. There's a per-source hint field (`CropHints`) carried through for it, but the detector that would use it isn't written.
 
 ## License
 

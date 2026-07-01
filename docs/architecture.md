@@ -1,0 +1,343 @@
+# paperboy architecture
+
+How paperboy works. Written alongside the 0.0.1 rework — the git history has the
+blow-by-blow if you want it.
+
+## The core idea
+
+Upstream isn't a smart API. freedomforum is basically a dumb CDN serving static
+PDFs at predictable URLs. So the useful way to think about paperboy is as a
+mirror: a background loop copies front pages into a local archive as they show
+up, and the HTTP side only ever reads from that archive.
+
+Everything else hangs off one decision — fetching and serving are separate. An
+HTTP request never triggers a fetch. The reconciler fills the archive; the
+handlers just read local disk.
+
+That's what keeps the server fast (no fetch or render in the request path), keeps
+upstream flakiness out of the request path entirely, and gets rid of the "GET
+advances the rotation" weirdness the first cut had.
+
+```
+                 ┌─────────────────┐        ┌──────────────┐
+  freedomforum ─▶│   reconciler    │ writes │  PDF archive │
+   (static CDN)  │ (background,    │───────▶│  (durable)   │
+                 │  every ~30 min) │        └──────┬───────┘
+                 └─────────────────┘               │ render (lazy)
+                                                    ▼
+                 ┌─────────────────┐  reads  ┌──────────────┐
+  HTTP clients ─▶│  handlers       │◀────────│  PNG cache   │
+  (displays)     │ (pure reads)    │         │ (disposable) │
+                 └─────────────────┘         └──────────────┘
+```
+
+## Storage layout
+
+```
+<PAPERBOY_DATA_DIR>/
+  archive/<source-id>/<YYYYMMDD>.pdf   # durable source of truth; kept N days
+  cache/<source-id>/<YYYYMMDD>.png     # disposable master renders; evict anytime
+  state.json                           # per-source health + provider ETags
+```
+
+Two directories, very different lifetimes:
+
+- `archive/` — the PDFs are the state. They're what has value, what gets a
+  retention policy, and what edition dates are keyed on. Written atomically
+  (temp + rename).
+- `cache/` — the PNGs aren't state. They're just renders derived from a PDF, with
+  no retention of their own. Evict any PNG whenever you like (LRU, or drop the
+  ones whose PDF aged out) and you've lost a few hundred milliseconds of
+  re-render, nothing more. `rm -rf cache/` is always safe.
+
+Everything's keyed by edition date (`YYYYMMDD`, from the PDF's `Last-Modified`
+header), not by the day-of-month we happened to request — see [trusting the
+origin](#trusting-the-origin).
+
+## Providers
+
+A Provider is the seam that keeps one upstream's quirks out of everything else.
+All the freedomforum-specific stuff — the day-of-month URLs, the 3-folder probe
+window, conditional GET / ETags, "the date comes from `Last-Modified`" — lives
+inside a provider. The engine never sees any of it.
+
+```go
+// MediaType is the kind of artifact a provider returns.
+type MediaType string
+const (
+    MediaPDF   MediaType = "application/pdf"
+    MediaImage MediaType = "image/png" // already-rendered sources skip rasterizing
+)
+
+// Edition is one fetched newspaper edition.
+type Edition struct {
+    Date    time.Time // edition date (FreedomForum: from Last-Modified)
+    Version string    // opaque change token (FreedomForum: ETag) — the engine persists it
+    Media   MediaType // whether we rasterize or use the bytes directly
+    Data    []byte
+}
+
+// Deps are shared runtime deps injected per-poll, so Provider *values* stay pure
+// config (many sources, one shared HTTP connection).
+type Deps struct {
+    HTTP   *http.Client
+    Logger *slog.Logger
+}
+
+// Provider acquires editions for the sources it backs.
+type Provider interface {
+    // Poll returns editions new or changed since `seen` (the tokens we persisted
+    // last time), plus the tokens to persist for next time. It may return none.
+    Poll(ctx context.Context, deps Deps, seen map[string]string, now time.Time) (
+        editions []Edition, versions map[string]string, err error)
+}
+```
+
+The version map is opaque to the engine — it stores whatever the provider hands
+back and returns it on the next poll. That keeps all the change-detection
+bookkeeping (ETags, feed cursors, API pagination, whatever) inside the provider.
+
+### Sources are typed
+
+A `Source` is a paper we serve. Its `Provider` is a typed value that's both the
+per-source config and the behavior:
+
+```go
+type Source struct {
+    ID          string
+    DisplayName string
+    CropHints   CropHints
+    Provider    Provider // typed config + behavior
+}
+
+// FreedomForum backs sources on freedomforum.org's daily archive.
+type FreedomForum struct {
+    Prefix string // e.g. "NY_NYT"
+}
+
+func (f FreedomForum) Poll(ctx context.Context, deps Deps, seen map[string]string, now time.Time) (
+    []Edition, map[string]string, error) {
+    // 1. compute the 3 day-of-month URLs from `now` (UTC yesterday/today/tomorrow)
+    // 2. conditional GET each with seen[url] as If-None-Match
+    //      304 -> unchanged, skip
+    //      404 -> nothing there, skip
+    //      200 -> Edition{Date: lastModified, Version: etag, Media: MediaPDF, Data: body}
+    // 3. return editions + updated versions
+}
+```
+
+Registry entries stay one-liners, just typed:
+
+```go
+{ID: "ny-nyt", DisplayName: "The New York Times",
+ Provider:  FreedomForum{Prefix: "NY_NYT"},
+ CropHints: CropHints{MastheadText: "The New York Times"}},
+```
+
+The freedomforum-specific `Prefix` lives on the provider now, instead of being
+smeared across the generic `Source`.
+
+The tradeoff, which I'm fine with at this stage: a `Source` holds behavior (an
+interface value), so sources are Go-defined for now — you can't load them
+straight from a YAML/JSON file without a registry or decoder. If config-file
+sources ever become a goal, that's exactly where a params-decoding provider (or a
+`ConfigurableProvider[C]`) would slot in, without touching this interface.
+
+### Adding a provider
+
+Implement `Provider` in `internal/provider/<name>` and return `Edition`s with the
+right `Media`. Nothing else changes — the engine archives, renders (per `Media`),
+prunes, and serves the same way regardless of provider.
+
+## The reconciler
+
+A background loop the server starts (the library doesn't — see [library vs
+server](#library-vs-server)). On boot, then every `PAPERBOY_POLL_INTERVAL`, for
+each source:
+
+```
+seen := state.versions[source.ID]
+editions, versions := source.Provider.Poll(deps, seen, now)
+for each edition: archive.Put(source.ID, edition)   # atomic; keyed by edition date
+persist versions -> state.versions[source.ID]
+record health: success if we stored anything, failure if the poll errored
+prune archive/<id>/* older than PAPERBOY_ARCHIVE_DAYS
+```
+
+Right now sources are polled sequentially on a fixed interval, and a source that
+errors just gets retried next cycle. That's already gentle on the CDN (see
+below), so jitter, backoff, and bounded concurrency are refinements I've left for
+later rather than built.
+
+### Why three probes, and why it's cheap
+
+The provider probes three day-of-month folders — UTC yesterday, today, tomorrow.
+That's the smallest window that works for any timezone: the earth spans UTC−12 to
+UTC+14, so a paper's local date is always within a day of UTC's. Three folders
+therefore always cover the one holding its current edition, without paperboy
+knowing anything about that paper's timezone or press schedule. It's a couple of
+cheap requests instead of a per-paper schedule table nobody wants to maintain.
+
+It stays cheap because the probes are conditional. With a stored ETag an
+unchanged folder is a `304` (no body) and a missing one is a `404` (no body), so
+a full PDF only crosses the wire when there's genuinely a new edition. For 6
+sources on a 30-minute cadence that's ~18 tiny requests a cycle (~600/day),
+nearly all 304/404, plus a handful of real downloads. It's all one host over
+HTTP/2, so a single connection multiplexes everything, and the User-Agent names
+the project so the CDN operator can find us.
+
+We never try to decide whether a day's edition is "final" — we can't know that,
+and we don't need to. We re-probe the window every cycle; a `304` just means "do
+nothing," whether the edition is done forever or simply hasn't changed yet. A
+folder drops out of the rotation only when it slides past the yesterday/today/
+tomorrow window as the date rolls forward.
+
+## Rendering
+
+Rendering turns an archived artifact into a master-width grayscale PNG in
+`cache/`:
+
+- `MediaPDF` — rasterize page 1 (go-fitz / MuPDF), grayscale, resize to the
+  master width, write atomically.
+- `MediaImage` — decode, grayscale, resize, write.
+
+It's lazy: a PNG is produced the first time someone asks for that (source, date)
+and cached after. Pre-rendering in the reconciler is a possible optimization
+later — it'd make every request instant at the cost of rendering papers nobody
+looks at — but it wouldn't change the model (the PDF archive is still the source
+of truth), so it can be added whenever without disruption.
+
+Per-request `?w=` resizes down from the cached master (see [sizing](#sizing));
+those per-width outputs are computed per request, not stored.
+
+## HTTP API
+
+Every handler is a pure read over the local archive/cache. None of them fetch.
+
+| Endpoint | Behavior |
+|---|---|
+| `GET /current.png` | The current rotation slot (time-based; see below). A safe read — no mutation. |
+| `GET /paper/{id}.png` | Newest archived edition for a specific source. |
+| `GET /sources` | JSON: the configured sources and their health. |
+| `GET /health` | Liveness — 200 whenever the process is up. |
+| `GET /healthz` | Readiness — 200 once at least one usable edition is archived. |
+
+`GET /paper/{id}/{date}.png` (a specific archived edition) is an obvious future
+addition now that there's a real archive, but it isn't there yet.
+
+Image endpoints take `?w=<int>` and set `X-Paperboy-Source`, `X-Paperboy-Width`,
+`X-Paperboy-Height`, and `X-Paperboy-Days-Old`. If the served edition is a
+cross-source fallback because the slot's source had nothing, `X-Paperboy-Stale:
+true` is set too.
+
+`X-Paperboy-Days-Old` is `floor(now − edition date)` in whole days — elapsed time
+since the edition, which sidesteps the timezone off-by-one you'd get comparing
+against a wall-clock "today."
+
+### Serving flow
+
+```
+GET /current.png
+  slot   := (now.Unix() / rotateIntervalSeconds) mod len(sources)
+  source := sources[slot]
+  edition := newest archived edition for source
+     ↓ (source has nothing archived yet)
+     newest archived edition across ANY source, with X-Paperboy-Stale: true
+     ↓ (archive is completely empty — cold start only)
+     503
+  render / resize -> PNG -> respond
+```
+
+### Rotation
+
+Rotation is a deterministic function of the clock, not a stored index that gets
+mutated:
+
+```
+slot = (now.Unix() / PAPERBOY_ROTATE_INTERVAL_seconds) mod len(sources)
+```
+
+So `GET /current.png` is a safe, idempotent read; every client shows the same
+paper at the same time; there's no rotation index to persist, no GET-time
+mutation, and no race on advancing it. The library method is `RenderCurrent` (the
+old advancing `RenderNext` is gone). If you want to walk every paper, use
+`ListSources` + `RenderFor` — which is explicit about what it's doing.
+
+### Sizing
+
+The client controls output size, not the server. `PAPERBOY_WIDTH` is the master
+width paperboy renders and caches at (the quality ceiling). Per-request `?w=`
+resizes down from the master, preserving aspect ratio; asking for more than the
+master just gets you the master (no upscaling). That's what lets one instance
+feed a 13" Visionect, a TRMNL, a Home Assistant card, and a browser tab off a
+single cached render.
+
+## Configuration
+
+| Var | Default | Description |
+|---|---|---|
+| `PAPERBOY_PORT` | `8080` | HTTP listen port |
+| `PAPERBOY_DATA_DIR` | `./data` | Root for `archive/`, `cache/`, `state.json` |
+| `PAPERBOY_WIDTH` | `1600` | Master render width (quality ceiling) |
+| `PAPERBOY_POLL_INTERVAL` | `30m` | Reconciler cadence |
+| `PAPERBOY_ROTATE_INTERVAL` | `1h` | Rotation slot duration for `/current.png` |
+| `PAPERBOY_ARCHIVE_DAYS` | `14` | PDF archive retention |
+| `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
+
+## Why it's built this way
+
+A few decisions worth writing down so we don't re-litigate them:
+
+- Trust the origin on dates. freedomforum serves the genuine current paper for a
+  day or `404`s — it doesn't serve stale month-old content (checked: folders
+  older than ~2 days `404` instead of returning a prior month's file). So we
+  don't fingerprint content, parse per-paper PDF metadata, or otherwise "verify"
+  a date the origin already stands behind. We take the date from `Last-Modified`
+  and move on.
+- <a name="trusting-the-origin"></a>Key by edition date, not the requested day.
+  The URL only carries a day-of-month; the response (`Last-Modified`) carries the
+  real date. Keying the archive on `Last-Modified` means a paper is always filed
+  under its true edition date no matter which folder we probed.
+- The archive builds up; it can't be backfilled. freedomforum only keeps ~2 days
+  live, so a deep archive exists only because the reconciler fetches daily and
+  retains. A fresh install is ~2 days deep whatever `PAPERBOY_ARCHIVE_DAYS` says,
+  and fills in over time. That's the main reason to fetch eagerly in the
+  background — a lazy, request-driven design can never build history.
+- PNGs are cache, not state. See [storage layout](#storage-layout).
+- Time-based rotation. Kills GET-time mutation, keeps multiple displays in sync,
+  and deletes the stored rotation index and its race.
+- Both health endpoints stay. paperboy should run under compose *or* k8s, and the
+  liveness/readiness split costs compose nothing while being load-bearing under an
+  orchestrator.
+- `?w=` stays. One instance really does serve several device classes with
+  different pixel budgets, so render-once / slice-many earns its keep.
+
+## Library vs server
+
+`pkg/paperboy` is a passive engine: it renders and reads. The background
+reconciler is a server concern, started explicitly with `p.StartReconciler(ctx)`,
+so embedding the engine never quietly spawns a goroutine fetching PDFs. Embedders
+that want the mirror opt into it.
+
+## Package layout
+
+```
+internal/
+  source/            Source, Provider, Edition, Deps, MediaType (contracts; leaf pkg)
+  provider/
+    freedomforum/    the FreedomForum provider (imports source)
+  registry/          the built-in source list (imports source + providers)
+  reconcile/         the background loop: poll -> archive -> prune
+  archive/           durable PDF store: atomic Put, Newest, prune
+  render/            MediaType-aware "normalize to master PNG" (wraps rasterize)
+  rasterize/         PDF -> image (go-fitz / MuPDF)
+  cache/             state.json: per-source health + provider ETags
+  buildinfo/         version string + User-Agent
+pkg/paperboy/        the engine: wires it all together; RenderCurrent / RenderFor /
+                     StartReconciler
+```
+
+Import direction: `source` is a leaf (just contracts); providers, the registry,
+and the engine depend on it, never the other way. The registry references the
+concrete `FreedomForum` type, so it lives in its own package rather than in
+`source` — that keeps `source` free of provider implementations.

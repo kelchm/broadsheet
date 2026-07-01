@@ -68,7 +68,7 @@ func newListCmd() *cobra.Command {
 		Run: func(_ *cobra.Command, _ []string) {
 			p := mustPaperboy()
 			for _, s := range p.ListSources() {
-				fmt.Printf("%-10s  %-30s  %s\n", s.ID, s.DisplayName, s.Prefix)
+				fmt.Printf("%-10s  %s\n", s.ID, s.DisplayName)
 			}
 		},
 	}
@@ -78,17 +78,22 @@ func newFetchCmd() *cobra.Command {
 	var outWidth int
 	cmd := &cobra.Command{
 		Use:   "fetch <source-id>",
-		Short: "Fetch and render a specific source now",
+		Short: "Poll a source into the archive and render its newest edition",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
 			p := mustPaperboy()
+			ctx := context.Background()
+			if err := p.Refresh(ctx, args[0]); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 			opts := paperboy.RenderOptions{OutputWidth: outWidth}
-			res, err := p.RenderFor(context.Background(), args[0], opts)
+			res, err := p.RenderFor(ctx, args[0], opts)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
-			fmt.Printf("rendered %s (%d days old, %dx%d, %d bytes, fetched_at=%s)\n",
+			fmt.Printf("rendered %s (%d days old, %dx%d, %d bytes, edition=%s)\n",
 				res.SourceID, res.DaysOld, res.Width, res.Height, len(res.Image),
 				res.FetchedAt.Format("2006-01-02"))
 		},

@@ -13,11 +13,8 @@ func TestOpenFreshState(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	snap := s.Snapshot()
-	if snap.Rotation.NextIndex != 0 {
-		t.Errorf("fresh NextIndex = %d, want 0", snap.Rotation.NextIndex)
-	}
-	if snap.Sources == nil {
-		t.Errorf("fresh state has nil Sources map")
+	if snap.Sources == nil || snap.Versions == nil {
+		t.Errorf("fresh state has nil maps")
 	}
 }
 
@@ -29,11 +26,11 @@ func TestUpdatePersistsAtomically(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	now := time.Now().UTC().Truncate(time.Second)
-	if err := s1.Update(func(st *State) {
-		st.Rotation.NextIndex = 5
-		st.Sources["ny-nyt"] = SourceRecord{LastFetchOK: &now}
-	}); err != nil {
-		t.Fatalf("Update: %v", err)
+	if err := s1.RecordSuccess("ny-nyt", now); err != nil {
+		t.Fatalf("RecordSuccess: %v", err)
+	}
+	if err := s1.SetVersions("ny-nyt", map[string]string{"url30": "etag30"}); err != nil {
+		t.Fatalf("SetVersions: %v", err)
 	}
 
 	s2, err := Open(path)
@@ -41,14 +38,15 @@ func TestUpdatePersistsAtomically(t *testing.T) {
 		t.Fatalf("re-Open: %v", err)
 	}
 	snap := s2.Snapshot()
-	if snap.Rotation.NextIndex != 5 {
-		t.Errorf("persisted NextIndex = %d, want 5", snap.Rotation.NextIndex)
-	}
+
 	rec, ok := snap.Sources["ny-nyt"]
 	if !ok {
 		t.Fatalf("source record missing")
 	}
 	if rec.LastFetchOK == nil || !rec.LastFetchOK.Equal(now) {
 		t.Errorf("persisted LastFetchOK = %v, want %v", rec.LastFetchOK, now)
+	}
+	if got := s2.Versions("ny-nyt")["url30"]; got != "etag30" {
+		t.Errorf("persisted version = %q, want etag30", got)
 	}
 }

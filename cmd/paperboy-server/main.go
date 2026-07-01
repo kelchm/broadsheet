@@ -23,10 +23,13 @@ import (
 )
 
 type envConfig struct {
-	Port     int    `env:"PAPERBOY_PORT" envDefault:"8080"`
-	DataDir  string `env:"PAPERBOY_DATA_DIR" envDefault:"./data"`
-	Width    int    `env:"PAPERBOY_WIDTH" envDefault:"1600"`
-	LogLevel string `env:"PAPERBOY_LOG_LEVEL" envDefault:"info"`
+	Port           int           `env:"PAPERBOY_PORT" envDefault:"8080"`
+	DataDir        string        `env:"PAPERBOY_DATA_DIR" envDefault:"./data"`
+	Width          int           `env:"PAPERBOY_WIDTH" envDefault:"1600"`
+	LogLevel       string        `env:"PAPERBOY_LOG_LEVEL" envDefault:"info"`
+	RotateInterval time.Duration `env:"PAPERBOY_ROTATE_INTERVAL" envDefault:"1h"`
+	PollInterval   time.Duration `env:"PAPERBOY_POLL_INTERVAL" envDefault:"30m"`
+	ArchiveDays    int           `env:"PAPERBOY_ARCHIVE_DAYS" envDefault:"14"`
 }
 
 func main() {
@@ -52,14 +55,22 @@ func main() {
 	slog.SetDefault(logger)
 
 	p, err := paperboy.New(paperboy.Config{
-		DataDir: ec.DataDir,
-		Width:   ec.Width,
-		Logger:  logger,
+		DataDir:        ec.DataDir,
+		Width:          ec.Width,
+		RotateInterval: ec.RotateInterval,
+		PollInterval:   ec.PollInterval,
+		ArchiveDays:    ec.ArchiveDays,
+		Logger:         logger,
 	})
 	if err != nil {
 		logger.Error("init paperboy", "err", err)
 		os.Exit(1)
 	}
+
+	// Start the background mirror loop, tied to the process lifecycle.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	p.StartReconciler(ctx)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -88,8 +99,6 @@ func main() {
 		}
 	}()
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 	<-ctx.Done()
 	logger.Info("shutting down")
 
@@ -107,16 +116,13 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 
 func handleReadiness(p *paperboy.Paperboy) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		h := p.HealthSnapshot()
-		for _, sh := range h.Sources {
-			if sh.LastFetchOK != nil {
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte("ready\n"))
-				return
-			}
+		if p.Ready() {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ready\n"))
+			return
 		}
 		w.WriteHeader(http.StatusServiceUnavailable)
-		_, _ = w.Write([]byte("not ready: no successful fetch yet\n"))
+		_, _ = w.Write([]byte("not ready: no editions archived yet\n"))
 	}
 }
 
@@ -127,7 +133,6 @@ type sourcesResp struct {
 type sourceRespEntry struct {
 	ID          string                `json:"id"`
 	DisplayName string                `json:"display_name"`
-	Prefix      string                `json:"prefix"`
 	Health      paperboy.SourceHealth `json:"health"`
 }
 
@@ -138,7 +143,7 @@ func handleSources(p *paperboy.Paperboy) http.HandlerFunc {
 		resp := sourcesResp{Sources: make([]sourceRespEntry, 0, len(srcs))}
 		for _, s := range srcs {
 			resp.Sources = append(resp.Sources, sourceRespEntry{
-				ID: s.ID, DisplayName: s.DisplayName, Prefix: s.Prefix,
+				ID: s.ID, DisplayName: s.DisplayName,
 				Health: h.Sources[s.ID],
 			})
 		}
@@ -154,7 +159,7 @@ func handleCurrent(p *paperboy.Paperboy) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		res, err := p.RenderNext(r.Context(), opts)
+		res, err := p.RenderCurrent(r.Context(), opts)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return

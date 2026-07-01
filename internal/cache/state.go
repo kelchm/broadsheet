@@ -1,10 +1,10 @@
-// Package cache owns the on-disk state and image cache.
+// Package cache owns paperboy's small persistent state file.
 //
-// State is a single JSON file written atomically (tmp + rename). It holds the
-// rotation index and per-source health. The cached images themselves (the
-// actual PNG/PDF bytes) live next to it on the filesystem and are discovered by
-// scanning the directory (see FilesystemLookup), so the filesystem — not this
-// JSON — is the source of truth for what's cached.
+// State is a single JSON file written atomically (tmp + rename). It holds
+// per-source health and each provider's opaque change tokens (ETags), so
+// conditional fetches survive a restart. The archived editions and rendered
+// PNGs live elsewhere on the filesystem (see internal/archive); this file only
+// tracks health and version tokens.
 package cache
 
 import (
@@ -18,14 +18,16 @@ import (
 )
 
 // State is the persistent state for a paperboy instance.
+//
+// Rotation is deterministic from the clock and needs no stored index, so state
+// is just per-source health plus each provider's opaque change tokens.
 type State struct {
-	Rotation Rotation                `json:"rotation"`
-	Sources  map[string]SourceRecord `json:"sources"`
-}
-
-// Rotation tracks which source is next.
-type Rotation struct {
-	NextIndex int `json:"next_index"`
+	Sources map[string]SourceRecord `json:"sources"`
+	// Versions holds each provider's opaque change tokens (ETags), keyed by
+	// source ID then by the provider's own key, so conditional fetches survive
+	// a restart. The engine persists whatever a provider returns and never
+	// interprets it.
+	Versions map[string]map[string]string `json:"versions,omitempty"`
 }
 
 // SourceRecord captures the recent health of a single source.
@@ -46,7 +48,8 @@ type Store struct {
 func Open(path string) (*Store, error) {
 	s := &Store{path: path}
 	s.st = State{
-		Sources: map[string]SourceRecord{},
+		Sources:  map[string]SourceRecord{},
+		Versions: map[string]map[string]string{},
 	}
 	data, err := os.ReadFile(path)
 	switch {
@@ -60,6 +63,9 @@ func Open(path string) (*Store, error) {
 		}
 		if s.st.Sources == nil {
 			s.st.Sources = map[string]SourceRecord{}
+		}
+		if s.st.Versions == nil {
+			s.st.Versions = map[string]map[string]string{}
 		}
 	}
 	return s, nil
@@ -116,11 +122,65 @@ func (s *Store) persistLocked() error {
 
 func cloneState(in State) State {
 	out := State{
-		Rotation: in.Rotation,
 		Sources:  make(map[string]SourceRecord, len(in.Sources)),
+		Versions: make(map[string]map[string]string, len(in.Versions)),
 	}
 	for k, v := range in.Sources {
 		out.Sources[k] = v
 	}
+	for id, vers := range in.Versions {
+		cp := make(map[string]string, len(vers))
+		for k, v := range vers {
+			cp[k] = v
+		}
+		out.Versions[id] = cp
+	}
 	return out
+}
+
+// Versions returns a copy of the persisted provider version tokens for a source.
+func (s *Store) Versions(sourceID string) map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make(map[string]string, len(s.st.Versions[sourceID]))
+	for k, v := range s.st.Versions[sourceID] {
+		out[k] = v
+	}
+	return out
+}
+
+// SetVersions replaces the persisted version tokens for a source.
+func (s *Store) SetVersions(sourceID string, versions map[string]string) error {
+	return s.Update(func(st *State) {
+		if st.Versions == nil {
+			st.Versions = map[string]map[string]string{}
+		}
+		cp := make(map[string]string, len(versions))
+		for k, v := range versions {
+			cp[k] = v
+		}
+		st.Versions[sourceID] = cp
+	})
+}
+
+// RecordSuccess marks a source as having successfully acquired an edition.
+func (s *Store) RecordSuccess(sourceID string, when time.Time) error {
+	return s.Update(func(st *State) {
+		rec := st.Sources[sourceID]
+		t := when.UTC()
+		rec.LastFetchOK = &t
+		rec.LastErrorMsg = ""
+		st.Sources[sourceID] = rec
+	})
+}
+
+// RecordFailure marks a source as having failed to reach upstream.
+func (s *Store) RecordFailure(sourceID, msg string, when time.Time) error {
+	return s.Update(func(st *State) {
+		rec := st.Sources[sourceID]
+		t := when.UTC()
+		rec.LastFetchError = &t
+		rec.LastErrorMsg = msg
+		st.Sources[sourceID] = rec
+	})
 }
