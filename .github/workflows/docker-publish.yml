@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]      # publishes :latest for the GitOps deploy to track
     tags: ['v*']          # publishes semver tags (1.2.3, 1.2) for pinning later
+  pull_request:           # build-only check (push stays false); validates multi-arch
   workflow_dispatch:      # build-only sanity check (no publish)
 
 permissions:
@@ -66,9 +67,10 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
-          # No attestation consumers: skip provenance so the manifest list holds
-          # only the real platforms (default provenance adds unknown/unknown).
-          provenance: false
+          # Full SLSA build provenance. Adds an unknown/unknown entry to the
+          # index in some registry UIs — cosmetic; the platform manifests
+          # resolve normally (containerd, Renovate, Flux all handle it).
+          provenance: mode=max
           # Multi-arch: go-fitz bundles prebuilt static MuPDF for both arches,
           # so the emulated arm64 cgo build just links (no C source compile).
           platforms: linux/amd64,linux/arm64
