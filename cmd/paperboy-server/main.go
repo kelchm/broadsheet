@@ -74,7 +74,6 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(loggingMW(logger))
 
@@ -213,7 +212,7 @@ func writeImage(w http.ResponseWriter, res *paperboy.Result) {
 	if res.Stale {
 		w.Header().Set("X-Paperboy-Stale", "true")
 	}
-	_, _ = w.Write(res.Image)
+	_, _ = w.Write(res.Image) //nolint:gosec // G705: res.Image is server-rendered PNG bytes served as image/png, not user-controlled markup
 }
 
 func loggingMW(logger *slog.Logger) func(http.Handler) http.Handler {

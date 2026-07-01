@@ -36,7 +36,7 @@ func (f *FitzRasterizer) Rasterize(_ context.Context, pdfPath, pngPath string, w
 	if err != nil {
 		return fmt.Errorf("rasterize: open pdf %s: %w", pdfPath, err)
 	}
-	defer doc.Close()
+	defer func() { _ = doc.Close() }()
 
 	if doc.NumPage() == 0 {
 		return fmt.Errorf("rasterize: pdf %s has no pages", pdfPath)

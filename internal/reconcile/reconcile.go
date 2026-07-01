@@ -45,7 +45,7 @@ func (r *Reconciler) logger() *slog.Logger {
 }
 
 // Run performs an immediate reconcile, then reconciles every Interval until the
-// context is cancelled. Intended to be launched in its own goroutine.
+// context is canceled. Intended to be launched in its own goroutine.
 func (r *Reconciler) Run(ctx context.Context) {
 	r.ReconcileOnce(ctx)
 

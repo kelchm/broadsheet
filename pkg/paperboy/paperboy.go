@@ -158,7 +158,7 @@ func New(cfg Config) (*Paperboy, error) {
 	archiveDir := filepath.Join(cfg.DataDir, "archive")
 	cacheDir := filepath.Join(cfg.DataDir, "cache")
 	for _, d := range []string{archiveDir, cacheDir} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+		if err := os.MkdirAll(d, 0o750); err != nil {
 			return nil, fmt.Errorf("paperboy: create %s: %w", d, err)
 		}
 	}
@@ -193,7 +193,7 @@ func New(cfg Config) (*Paperboy, error) {
 }
 
 // StartReconciler launches the background mirror loop in its own goroutine. It
-// reconciles immediately, then every PollInterval, until ctx is cancelled.
+// reconciles immediately, then every PollInterval, until ctx is canceled.
 func (p *Paperboy) StartReconciler(ctx context.Context) {
 	go p.reconciler.Run(ctx)
 }
@@ -266,7 +266,7 @@ func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, o
 		}
 	}
 
-	data, err := os.ReadFile(pngPath)
+	data, err := os.ReadFile(pngPath) //nolint:gosec // G304: internal cache path from a validated source entry, not user input
 	if err != nil {
 		return nil, fmt.Errorf("paperboy: read render: %w", err)
 	}

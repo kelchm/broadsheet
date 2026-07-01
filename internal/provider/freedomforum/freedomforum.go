@@ -117,7 +117,7 @@ func fetchConditional(ctx context.Context, client *http.Client, url, etag string
 	if err != nil {
 		return nil, "", 0, fmt.Errorf("freedomforum: GET %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, resp.Body) // allow connection reuse

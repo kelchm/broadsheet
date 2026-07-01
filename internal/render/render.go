@@ -29,7 +29,7 @@ func New() *Renderer {
 // Render writes a master-width PNG for the archived artifact at srcPath to
 // dstPath, dispatching on media type.
 func (r *Renderer) Render(ctx context.Context, srcPath string, media source.MediaType, dstPath string, width int) error {
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0o750); err != nil {
 		return fmt.Errorf("render: mkdir: %w", err)
 	}
 	switch media {

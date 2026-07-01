@@ -57,7 +57,7 @@ func (s *Store) Put(sourceID string, ed source.Edition) (Entry, error) {
 		return Entry{}, fmt.Errorf("archive: edition for %s has zero date", sourceID)
 	}
 	dir := filepath.Join(s.Root, sourceID)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return Entry{}, fmt.Errorf("archive: mkdir %s: %w", dir, err)
 	}
 	dst := filepath.Join(dir, ed.Date.UTC().Format(dateLayout)+ext(ed.Media))

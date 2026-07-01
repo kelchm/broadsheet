@@ -37,6 +37,7 @@ type CropHints struct {
 // rendered image.
 type MediaType string
 
+// The media types a provider can return.
 const (
 	MediaPDF   MediaType = "application/pdf"
 	MediaImage MediaType = "image/png"

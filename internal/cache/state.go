@@ -51,7 +51,7 @@ func Open(path string) (*Store, error) {
 		Sources:  map[string]SourceRecord{},
 		Versions: map[string]map[string]string{},
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: internal state-file path (DataDir/state.json), not user input
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		// fresh state — leave defaults
@@ -93,7 +93,7 @@ func (s *Store) persistLocked() error {
 		return fmt.Errorf("cache: marshal state: %w", err)
 	}
 	dir := filepath.Dir(s.path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("cache: mkdir %s: %w", dir, err)
 	}
 	tmp, err := os.CreateTemp(dir, ".state.*.json.tmp")
