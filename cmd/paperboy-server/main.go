@@ -36,7 +36,7 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--version", "-v", "version":
-			fmt.Println("paperboy-server", buildinfo.Version)
+			fmt.Println("paperboy-server", buildinfo.String())
 			return
 		}
 	}
@@ -92,7 +92,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("paperboy-server listening", "addr", addr, "version", buildinfo.Version, "data_dir", ec.DataDir)
+		logger.Info("paperboy-server listening", "addr", addr, "version", buildinfo.Version, "commit", buildinfo.Commit, "data_dir", ec.DataDir)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server stopped", "err", err)
 			os.Exit(1)

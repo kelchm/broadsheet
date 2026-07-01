@@ -15,9 +15,20 @@ RUN go mod download
 
 COPY . .
 
+# Build metadata stamped into internal/buildinfo via ldflags. Defaults keep an
+# un-stamped local `go build` honest; CI passes the real version/commit/date.
+ARG VERSION=dev
+ARG REVISION=none
+ARG BUILD_DATE=unknown
+
 # CGO is required (and on by default) so go-fitz links the bundled MuPDF.
 ENV CGO_ENABLED=1
-RUN go build -trimpath -ldflags="-s -w" -o /out/paperboy-server ./cmd/paperboy-server
+RUN go build -trimpath \
+    -ldflags="-s -w \
+      -X github.com/kelchm/paperboy/internal/buildinfo.Version=${VERSION} \
+      -X github.com/kelchm/paperboy/internal/buildinfo.Commit=${REVISION} \
+      -X github.com/kelchm/paperboy/internal/buildinfo.Date=${BUILD_DATE}" \
+    -o /out/paperboy-server ./cmd/paperboy-server
 
 # Pre-create the data dir owned by the nonroot runtime uid so a mounted volume
 # inherits writable ownership on first use.

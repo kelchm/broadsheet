@@ -1,0 +1,78 @@
+name: docker-publish
+
+on:
+  push:
+    branches: [main]      # publishes :latest for the GitOps deploy to track
+    tags: ['v*']          # publishes semver tags (1.2.3, 1.2) for pinning later
+  workflow_dispatch:      # build-only sanity check (no publish)
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+      # go-fitz bundles MuPDF as a prebuilt static lib, so the cgo build needs
+      # only the C toolchain already on the runner — no system CV/PDF packages.
+      - name: build
+        run: go build ./...
+      - name: test
+        run: go test -race -count=1 ./...
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    # packages:write scoped to the only job that pushes to GHCR.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/paperboy
+          # main push -> latest + sha-<short> (immutable, for rollback).
+          # v* tag   -> 1.2.3 + 1.2 (for pinning once the project stabilizes).
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          # amd64 only: deploy target is amd64 and there's no arm64 consumer.
+          # go-fitz ships arm64 static libs, so add linux/arm64 here if that
+          # ever changes.
+          platforms: linux/amd64
+          # workflow_dispatch is a build-only sanity check; don't publish it.
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Stamp build metadata into internal/buildinfo (see docker/Dockerfile).
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            REVISION=${{ github.sha }}
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

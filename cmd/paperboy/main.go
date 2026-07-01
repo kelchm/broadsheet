@@ -24,7 +24,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:     "paperboy",
 		Short:   "Newspaper front-page rotator for e-ink displays",
-		Version: buildinfo.Version,
+		Version: buildinfo.String(),
 		Long: `paperboy fetches newspaper front pages from freedomforum.org, rasterizes
 them, and serves them on rotation.
 
