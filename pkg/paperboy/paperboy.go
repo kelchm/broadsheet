@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"image"
 	"image/color"
 	_ "image/png" // register PNG decoder for image.Decode
@@ -31,6 +32,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -58,6 +60,10 @@ func Version() string { return buildinfo.Version }
 
 // ErrNoneAvailable is returned when nothing has been archived yet (cold start).
 var ErrNoneAvailable = errors.New("paperboy: no editions available yet")
+
+// ErrUnknownSource is returned when a source ID isn't configured — a caller
+// error (HTTP 404-shaped), distinct from server-side render failures.
+var ErrUnknownSource = errors.New("paperboy: unknown source")
 
 const (
 	defaultWidth       = 1600
@@ -179,6 +185,7 @@ type Result struct {
 	DaysOld   int       // 0 for today's edition, 1 for yesterday's, etc.
 	Width     int       // actual pixel width of Image
 	Height    int       // actual pixel height of Image
+	ETag      string    // strong validator over (source, edition, artifact mtime, render params), pre-quoted for HTTP
 }
 
 // Health describes the per-source health of the engine.
@@ -290,7 +297,7 @@ func (p *Paperboy) Poll(ctx context.Context) {
 func (p *Paperboy) Refresh(ctx context.Context, sourceID string) error {
 	src := source.ByID(p.sources, sourceID)
 	if src == nil {
-		return fmt.Errorf("paperboy: unknown source %q", sourceID)
+		return fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 	}
 	p.reconciler.ReconcileSource(ctx, *src, p.now().UTC())
 	return nil
@@ -308,7 +315,7 @@ func (p *Paperboy) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*R
 		srcs = filterSources(p.sources, o.Sources)
 	}
 	if len(srcs) == 0 {
-		return nil, fmt.Errorf("paperboy: no sources match the request")
+		return nil, ErrNoSourcesMatch
 	}
 
 	src := srcs[p.cursors.Next(o.Device, len(srcs))]
@@ -324,11 +331,13 @@ func (p *Paperboy) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*R
 // RenderFor returns the newest archived edition for a specific source.
 func (p *Paperboy) RenderFor(ctx context.Context, sourceID string, opts ...RenderOptions) (*Result, error) {
 	if source.ByID(p.sources, sourceID) == nil {
-		return nil, fmt.Errorf("paperboy: unknown source %q", sourceID)
+		return nil, fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 	}
 	entry, ok := p.archive.Newest(sourceID)
 	if !ok {
-		return nil, fmt.Errorf("paperboy: no archived edition for %s yet", sourceID)
+		// Retryable, not a caller error: the reconciler simply hasn't filled
+		// this source yet.
+		return nil, fmt.Errorf("%w: no archived edition for %s", ErrNoneAvailable, sourceID)
 	}
 	return p.serve(ctx, entry, false, optsOrDefault(opts))
 }
@@ -373,6 +382,15 @@ func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, o
 		}
 	}
 
+	// Stat before read: the ETag hashes the mtime of the exact bytes served.
+	// The cached PNG is mtime-stamped to the artifact it was rendered from, so
+	// this stays coherent even if the reconciler overwrites the artifact while
+	// this request is in flight (stat-ing the artifact here instead could pin
+	// an old body under a new ETag behind 304s).
+	pngInfo, err := os.Stat(pngPath)
+	if err != nil {
+		return nil, fmt.Errorf("paperboy: stat render: %w", err)
+	}
 	data, err := os.ReadFile(pngPath) //nolint:gosec // G304: internal cache path from a validated source entry, not user input
 	if err != nil {
 		return nil, fmt.Errorf("paperboy: read render: %w", err)
@@ -400,7 +418,23 @@ func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, o
 		DaysOld:   daysOld,
 		Width:     out.Bounds().Dx(),
 		Height:    out.Bounds().Dy(),
+		ETag:      contentETag(entry, pngInfo.ModTime(), master, opts),
 	}, nil
+}
+
+// contentETag builds a strong validator over everything that determines the
+// response bytes: the edition identity (source + date + the served render's
+// mtime, which is stamped from the artifact it was rendered from — a corrected
+// edition changes it), the build version (render-code changes must invalidate
+// client caches), the master width, and the framing parameters. Pre-quoted for
+// direct use as an HTTP ETag.
+func contentETag(entry archive.Entry, renderMtime time.Time, master int, opts RenderOptions) string {
+	h := fnv.New64a()
+	_, _ = fmt.Fprintf(h, "%s|%s|%d|%s|%d|%d|%d|%s|%g",
+		entry.SourceID, entry.Date.UTC().Format("20060102"), renderMtime.UnixNano(),
+		buildinfo.Version,
+		master, opts.OutputWidth, opts.OutputHeight, opts.Fit, opts.MarginPct)
+	return fmt.Sprintf("%q", strconv.FormatUint(h.Sum64(), 16))
 }
 
 // filterSources returns the sources whose IDs appear in ids, in the order ids
@@ -441,8 +475,17 @@ func compose(page image.Image, o RenderOptions, master int) image.Image {
 		m := marginPx(min(w, h))
 		boxW, boxH := max(1, w-2*m), max(1, h-2*m)
 		if o.Fit == FitCover {
-			result = imaging.PasteCenter(imaging.New(w, h, white),
-				imaging.Fill(page, boxW, boxH, imaging.Center, imaging.Lanczos))
+			pw, ph := page.Bounds().Dx(), page.Bounds().Dy()
+			if boxW > pw || boxH > ph {
+				// Filling would upscale past the master ("never upscaled" is a
+				// documented contract); crop the native-resolution center
+				// region instead, leaving background where the page runs out.
+				result = imaging.PasteCenter(imaging.New(w, h, white),
+					imaging.CropCenter(page, min(boxW, pw), min(boxH, ph)))
+			} else {
+				result = imaging.PasteCenter(imaging.New(w, h, white),
+					imaging.Fill(page, boxW, boxH, imaging.Center, imaging.Lanczos))
+			}
 		} else {
 			result = imaging.PasteCenter(imaging.New(w, h, white),
 				imaging.Fit(page, boxW, boxH, imaging.Lanczos)) // contain, never upscales

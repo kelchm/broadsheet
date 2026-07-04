@@ -105,12 +105,23 @@ func newRouter(p *paperboy.Paperboy, logger *slog.Logger) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(loggingMW(logger))
 
-	r.Get("/", handleDisplay)
+	// The time-driven device plane (see rotation.go): pure reads, ETag'd,
+	// carrying forward-looking refresh hints.
+	r.Get("/rotation", handleRotationPage(p))
+	r.Get("/rotation.png", handleRotationPNG(p))
+	r.Get("/api/display", handleTRMNLDisplay(p))
+
 	r.Get("/health", handleHealth)
 	r.Get("/healthz", handleReadiness(p))
 	r.Get("/sources", handleSources(p))
-	r.Get("/current.png", handleCurrent(p))
 	r.Get("/paper/{id}.png", handlePaper(p))
+
+	// Deprecated: the advance-on-GET rotation. Each fetch mutates a per-device
+	// cursor, which breaks HTTP caching and makes previews perturb displays.
+	// Point displays at /rotation (HTML) or /rotation.png (raw) instead; these
+	// remain for existing deployments and will go away before 1.0.
+	r.Get("/", handleDisplay)
+	r.Get("/current.png", handleCurrent(p))
 	return r
 }
 
@@ -232,10 +243,12 @@ func handleCurrent(p *paperboy.Paperboy) http.HandlerFunc {
 		opts.Device = deviceID(r)
 		res, err := p.RenderCurrent(r.Context(), opts)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			writeEngineError(w, err)
 			return
 		}
-		writeImage(w, res)
+		// Advance-on-GET must never be cached: every fetch is a state change.
+		w.Header().Set("Cache-Control", "no-store")
+		writeImageBody(w, res)
 	}
 }
 
@@ -249,10 +262,18 @@ func handlePaper(p *paperboy.Paperboy) http.HandlerFunc {
 		}
 		res, err := p.RenderFor(r.Context(), id, opts)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			writeEngineError(w, err)
 			return
 		}
-		writeImage(w, res)
+		// A pure read: cacheable briefly, revalidatable by ETag so pull clients
+		// can conditional-GET and skip the repaint when nothing changed.
+		w.Header().Set("ETag", res.ETag)
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		if etagMatches(r.Header.Get("If-None-Match"), res.ETag) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		writeImageBody(w, res)
 	}
 }
 
@@ -265,7 +286,8 @@ func handlePaper(p *paperboy.Paperboy) http.HandlerFunc {
 //	              upscaled past its master resolution.
 //	?fit=         contain (default) or cover — only when both w and h are set.
 //	?margin=      background border, percent of the shorter side. 0 disables it.
-//	?sources=     comma-separated source IDs to rotate over (/current.png only).
+//	?sources=     comma-separated source IDs (rotation endpoints + /current.png).
+//	              Unknown IDs are skipped; all-unknown is an error.
 //	?device=      device id for per-device rotation (/current.png only); if
 //	              absent the client IP is used. Set on opts by the handler.
 func parseRenderOpts(r *http.Request) (paperboy.RenderOptions, error) {
@@ -311,13 +333,20 @@ func parseRenderOpts(r *http.Request) (paperboy.RenderOptions, error) {
 		}
 	}
 	if src := q.Get("sources"); src != "" {
-		for _, id := range strings.Split(src, ",") {
-			if id = strings.TrimSpace(id); id != "" {
-				opts.Sources = append(opts.Sources, id)
-			}
-		}
+		opts.Sources = splitSources(src)
 	}
 	return opts, nil
+}
+
+// splitSources parses a comma-separated source-ID list, trimming blanks.
+func splitSources(s string) []string {
+	var out []string
+	for _, id := range strings.Split(s, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // deviceID resolves the requester's rotation identity: an explicit ?device=
@@ -337,9 +366,12 @@ func deviceID(r *http.Request) string {
 	return "ip:" + host
 }
 
-func writeImage(w http.ResponseWriter, res *paperboy.Result) {
+// writeImageBody sets the X-Paperboy-* metadata headers and writes the PNG.
+// Caching headers (Cache-Control, ETag) are the caller's business — they
+// differ per endpoint semantics.
+func writeImageBody(w http.ResponseWriter, res *paperboy.Result) {
 	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Length", strconv.Itoa(len(res.Image)))
 	w.Header().Set("X-Paperboy-Source", res.SourceID)
 	w.Header().Set("X-Paperboy-Days-Old", fmt.Sprintf("%d", res.DaysOld))
 	w.Header().Set("X-Paperboy-Width", fmt.Sprintf("%d", res.Width))

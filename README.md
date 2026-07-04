@@ -27,7 +27,7 @@ make run                     # builds and runs the server on :8080
 docker compose -f compose.dev.yaml up --build
 ```
 
-Then open <http://localhost:8080/current.png>.
+Then open <http://localhost:8080/rotation>.
 
 ## How it works
 
@@ -65,39 +65,44 @@ for each source:
 ### Serving a request (no network)
 
 ```
-GET /current.png   (from device D)
-  source  = sources[ cursor(D)++ ]        # per-device, advances each load
-  edition = newest archived edition for that source
+GET /rotation.png?sources=ny-nyt,wsj&interval=30m
+  slot    = floor(now / interval) + phase     # pure function of the clock
+  source  = sources[ slot mod len(sources) ]
        |  (nothing archived for it yet)
-       -> newest edition from any source, with X-Paperboy-Stale: true
+       -> next source that has content, with X-Paperboy-Stale: true
        |  (archive is completely empty — cold start only)
        -> 503
-  render, frame, done
+  render, frame, respond with ETag + max-age until the next slot
 ```
 
-Once the archive has anything in it you shouldn't see a "Not Found". That was the point of the rewrite.
+Once the archive has anything in it you shouldn't see a "Not Found". And because
+rotation is a function of the clock — not a stored cursor — every GET is an
+idempotent read: previews, proxies, monitors, and curl can't perturb a display.
 
 ## Endpoints
 
 | Endpoint | What it does |
 |---|---|
-| `GET /` | The display page — fills the viewport and frames the current paper in CSS. Point an HTML-rendering display (Visionect, a browser, …) here. |
-| `GET /current.png` | The current paper for the requesting device, and **advances to the next on each load** (per device — see [Displays](#displays)). |
-| `GET /paper/{id}.png` | The newest archived edition for one source (doesn't advance). |
+| `GET /rotation` | The display page — fills the viewport, frames the paper in CSS, swaps to the next paper exactly at each slot boundary, and puts a Visionect panel to sleep until then. Point HTML-rendering displays here. |
+| `GET /rotation.png` | The rotation's current paper as a raw PNG, with `ETag` and `Cache-Control: max-age=<seconds to next slot>`. For image-pull devices. |
+| `GET /api/display` | TRMNL-compatible JSON envelope: `image_url` + `refresh_rate` (seconds until the content next changes). Point TRMNL/BYOS firmware here. |
+| `GET /paper/{id}.png` | The newest archived edition for one source. `ETag`'d pure read. |
 | `GET /sources` | JSON: the configured sources and their health. |
 | `GET /health` | Liveness — 200 as long as the process is up. |
 | `GET /healthz` | Readiness — 200 once there's at least one edition archived. |
+| `GET /`, `GET /current.png` | **Deprecated** advance-on-GET rotation; use `/rotation` / `/rotation.png`. Removed before 1.0. |
 
-The image endpoints take framing params: `?w=` / `?h=` (target size), `?fit=contain\|cover`, `?margin=<pct>`. `/current.png` also takes `?sources=<ids>` (rotate a subset) and `?device=<id>` (rotation identity; defaults to client IP). Every response carries `X-Paperboy-Source`, `-Width`, `-Height`, `-Days-Old`, plus `X-Paperboy-Stale: true` if you got a cross-source fallback.
+The image endpoints take framing params: `?w=` / `?h=` (target size), `?fit=contain\|cover`, `?margin=<pct>`. The rotation endpoints take `?sources=<ids>` (subset + order), `?interval=<dur>` (dwell per paper, default 30m), `?phase=<n>` (offset a display within the same playlist), `?slot=<n>` (pin an exact slot). Every response carries `X-Paperboy-Source`, `-Width`, `-Height`, `-Days-Old`; rotation responses add `X-Paperboy-Slot` and `X-Paperboy-Next-Change`, plus `X-Paperboy-Stale: true` if an empty source was substituted.
 
 ## Displays
 
-Two ways to drive a screen, depending on what the device can render:
+All per-display configuration lives in the URL you provision on the device — there are no display records to manage in paperboy. Three ways to drive a screen:
 
-- **It renders HTML** (Visionect is literally an HTML rendering engine; also browsers, dashboards) → point it at `GET /`. The page fills the viewport and frames the front page in CSS (`object-fit`, white background, a margin), so it fits *any* screen with no per-device setup. Tune with `?fit=cover` or `?margin=<n>`.
-- **It pulls a raw image** (fixed-resolution panels, Home Assistant, …) → point it at `/current.png?w=<W>&h=<H>`. The server frames it to exactly that size (`fit`/`margin` too). This is the path for devices that can't do CSS.
+- **It renders HTML** (Visionect is literally an HTML rendering engine; also browsers, dashboards) → point it at `GET /rotation?sources=…&interval=30m`. The page fits any screen with no per-device setup (`?fit=cover`, `?margin=<n>` to tune), advances itself exactly at slot boundaries, and — on Visionect — feature-detects the okular API and sleeps the panel until the next boundary (`?sleep=off` to disable). **Set VSS "Automatic page reload" to 0**; the page paces itself, and a reload timer pointed at a bare image URL will silently skip papers whenever it ticks slower than the interval.
+- **It pulls a raw image** (fixed-resolution panels, Home Assistant, …) → point it at `/rotation.png?sources=…&interval=30m&w=<W>&h=<H>`. Fetch at least as often as the interval; the `ETag`/`304` makes redundant fetches nearly free, and `X-Paperboy-Next-Change` says exactly how long to sleep.
+- **It speaks TRMNL** → point it at `/api/display?sources=…&interval=30m&w=800&h=480`. The envelope's `refresh_rate` wakes the firmware at the next slot boundary (clamped to ≥60s). Caveat: the image is a grayscale PNG — fine for BYOS/custom clients and anything that renders PNGs, but **stock TRMNL firmware expects a 1-bit image**; that output format lands with the per-device dithering work.
 
-**Rotation is per device, and advances on every load.** The device's own refresh cadence sets the pace — a Visionect that refreshes every 30 min just shows the next paper each time. A device is identified by `?device=<id>` (stable, your choice) or, with nothing set, its client IP (zero config on a LAN). Different devices rotate independently; hitting `/paper/{id}` never advances anything.
+Displays sharing a playlist stay in sync automatically; give one `?phase=1` to deliberately show the next paper over. `/paper/{id}` never rotates anything — it's always just that paper.
 
 ## Sizing
 
@@ -108,8 +113,8 @@ The client picks the size, not the server. One instance might feed a 13" Visione
 - Ask for more than the master and you just get the master back — upscaling only softens the text.
 
 ```sh
-curl http://localhost:8080/current.png            # master width (1600px)
-curl http://localhost:8080/current.png?w=800      # 800px wide, height proportional
+curl http://localhost:8080/rotation.png           # master width (1600px)
+curl http://localhost:8080/rotation.png?w=800     # 800px wide, height proportional
 curl http://localhost:8080/paper/ny-nyt.png?w=480 # a specific source, 480px wide
 ```
 

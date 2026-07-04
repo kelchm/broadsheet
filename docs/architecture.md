@@ -15,9 +15,10 @@ HTTP request never triggers a fetch. The reconciler fills the archive; the
 handlers just read local disk.
 
 That's what keeps the server fast (no fetch or render in the request path) and
-keeps upstream flakiness out of the request path entirely. (Rotation does advance
-per device on each load — see [rotation](#rotation) — but that's a small,
-per-device cursor, not the global GET-mutation the first cut had.)
+keeps upstream flakiness out of the request path entirely. Rotation is a pure
+function of the wall clock (see [rotation](#rotation)), so handlers really are
+pure reads — nothing mutates on GET. (The deprecated `/current.png` cursor path
+is the one legacy exception until it's removed.)
 
 ```
                  ┌─────────────────┐        ┌──────────────┐
@@ -166,8 +167,8 @@ each source:
 seen := state.versions[source.ID]
 editions, versions := source.Provider.Poll(deps, seen, now)
 for each edition: archive.Put(source.ID, edition)   # atomic; keyed by edition date
-persist versions -> state.versions[source.ID]
-record health: success if we stored anything, failure if the poll errored
+persist versions -> state.versions[source.ID]   # minus tokens of editions that failed to store
+record health: success if we stored anything; failure on poll or store errors
 prune archive/<id>/* older than PAPERBOY_ARCHIVE_DAYS
 ```
 
@@ -229,79 +230,85 @@ Every handler is a pure read over the local archive/cache. None of them fetch.
 
 | Endpoint | Behavior |
 |---|---|
-| `GET /` | Display page — fills the viewport and frames the current paper in CSS. For HTML-rendering displays. |
-| `GET /current.png` | Current paper for the requesting device; advances that device's cursor (see [rotation](#rotation)). |
-| `GET /paper/{id}.png` | Newest archived edition for a specific source (does not advance). |
+| `GET /rotation` | Display page for HTML renderers (Visionect, browsers) — self-pacing: swaps to the next paper exactly at each slot boundary and manages Visionect panel sleep. |
+| `GET /rotation.png` | The rotation's current paper as a raw PNG. Pure read; `ETag` + `Cache-Control: max-age=<to boundary>`. |
+| `GET /api/display` | TRMNL-wire-compatible JSON envelope: `image_url` (slot-explicit) + `refresh_rate` (seconds to the next slot boundary). |
+| `GET /paper/{id}.png` | Newest archived edition for a specific source. Pure read, `ETag`'d. |
 | `GET /sources` | JSON: the configured sources and their health. |
 | `GET /health` | Liveness — 200 whenever the process is up. |
 | `GET /healthz` | Readiness — 200 once at least one usable edition is archived. |
+| `GET /`, `GET /current.png` | **Deprecated.** The old advance-on-GET rotation (per-device cursor, `?device=`). Kept for existing deployments; will be removed before 1.0. |
 
 `GET /paper/{id}/{date}.png` (a specific archived edition) is an obvious future
 addition now that there's a real archive, but it isn't there yet.
 
 The image endpoints take framing params — `?w=` / `?h=` (target size),
-`?fit=contain|cover`, `?margin=<pct>` — and `/current.png` also takes
-`?sources=<ids>` and `?device=<id>`. Every response sets `X-Paperboy-Source`,
-`-Width`, `-Height`, and `-Days-Old`, plus `X-Paperboy-Stale: true` on a
-cross-source fallback.
+`?fit=contain|cover`, `?margin=<pct>` — and the rotation endpoints take
+`?sources=<ids>`, `?interval=<dur>`, `?phase=<n>`, `?slot=<n>`. Every response
+sets `X-Paperboy-Source`, `-Width`, `-Height`, and `-Days-Old`, plus
+`X-Paperboy-Stale: true` when a slot's source had nothing archived and the next
+source with content was substituted. Rotation responses add `X-Paperboy-Slot`
+and `X-Paperboy-Next-Change` (seconds until the rotation advances).
 
 `X-Paperboy-Days-Old` is `floor(now − edition date)` in whole days — elapsed time
 since the edition, which sidesteps the timezone off-by-one you'd get comparing
 against a wall-clock "today."
 
-### Serving flow
-
-```
-GET /current.png   (from device D)
-  source  := sources[ cursor.Next(D, len(sources)) ]   # advances D's cursor
-  edition := newest archived edition for source
-     ↓ (source has nothing archived yet)
-     newest archived edition across ANY source, with X-Paperboy-Stale: true
-     ↓ (archive is completely empty — cold start only)
-     503
-  frame -> PNG -> respond
-```
-
 ### Rotation
 
-Rotation is per device, and advances on every load — the device's own refresh
-cadence sets the pace, so there's no server-side rotate clock. Each
-`GET /current.png` from a device serves that device's current paper and bumps its
-cursor to the next:
+Which paper a rotation shows is a pure function of the wall clock and the URL —
+no cursor, no per-device state, nothing mutates on read:
 
 ```
-source = sources[ cursor.Next(device, len(sources)) ]
+slot  = floor(now / interval) + phase      (or an explicit ?slot=N)
+index = slot mod len(sources)
 ```
 
-A device is a string key, resolved by one small function: an explicit `?device=`
-wins (stable, user-chosen), otherwise the connecting IP (`r.RemoteAddr`) — zero
-config on a LAN, where that's the device. The key is scheme-prefixed
-(`name:kitchen`, `ip:10.0.0.5`) so strategies can't collide and more (cookie,
-header, token) can drop in later without touching callers.
+All per-display configuration travels in the URL the operator provisions on the
+device (there is deliberately no Display resource to manage). Because every GET
+is idempotent, previews, prefetchers, proxies, monitors, and debugging curls are
+all harmless; displays sharing a playlist stay in sync automatically (or
+deliberately offset via `phase=`); and a restart changes nothing. If the slot's
+source has nothing archived yet (cold-start fill-in), the rotation
+deterministically advances to the next source that does and marks the response
+`X-Paperboy-Stale` — every client makes the same substitution.
 
-The cursor sits behind a one-method interface (`Cursors.Next`), in-memory by
-default (resets on restart — harmless). If devices become first-class,
-configurable things, swap in a persistent implementation (e.g. SQLite) and
-nothing else changes.
+The slot boundary doubles as the refresh hint — "when does this content next
+change" — delivered in whatever transport each device class understands:
 
-This is the *per-device* version of the "advance on GET" the first cut had and we
-removed: the sin was a single *global* index that any request perturbed and that
-desynced every display. Keyed per device, only that device's own fetches move its
-cursor; `/paper/{id}` and everything else stay pure reads. The library method is
-`RenderCurrent` (advances the given `Device`); `ListSources` + `RenderFor` walks
-papers explicitly without advancing anything.
+- **Raw pullers:** `Cache-Control: max-age=<to boundary>` + `ETag` (skip the
+  repaint on 304) + `X-Paperboy-Next-Change`.
+- **TRMNL/BYOS:** the envelope's `refresh_rate` (clamped ≥60s), so the firmware
+  wakes at the boundary. The image is a grayscale PNG: wire-compatible today for
+  BYOS/custom clients; stock TRMNL firmware additionally needs the 1-bit output
+  format that lands with the per-device dithering work.
+- **Visionect:** the display page itself. VSS runs a persistent server-side
+  browser, so the page is the clock: it server-renders the current slot's image
+  (correct even if JS never runs), swaps to an explicit-slot URL
+  (`/rotation.png?…&slot=N`) exactly at each boundary via DOM swap, keeps a 12h
+  meta-refresh watchdog, and — feature-detecting `window.okular` — parks the
+  panel with `okular.Sleep(minutes-to-boundary)` after each swap lands
+  (`?sleep=off` disables). Set the VSS "Automatic page reload" to 0; the page
+  paces itself. Never point VSS's reload timer at the bare PNG: a reload period
+  slower than the interval silently skips papers.
+
+The deprecated `/current.png` path still advances a per-device in-memory cursor
+per fetch (`?device=` else client IP); see git history for that design's
+rationale and why it lost — non-idempotent GETs break caching, previews perturb
+displays, and IP identity collapses behind a proxy.
 
 ### Sizing and framing
 
 The client controls size and framing; the server only decides which image. Two
 paths, by device type:
 
-- HTML displays hit `GET /` — the page fills the viewport and frames the front
-  page in CSS (`object-fit: contain`, white background, a padding margin). No
-  per-device config; the browser already knows its own size.
-- Raw-image devices hit `/current.png?w=&h=&fit=&margin=` — the server frames to
-  exactly that canvas (contain or cover, with a margin), for panels that can't do
-  CSS.
+- HTML displays hit `GET /rotation` — the page fills the viewport and frames the
+  front page in CSS (`object-fit: contain`, white background, a padding margin).
+  No per-device config; the browser already knows its own size.
+- Raw-image devices hit `/rotation.png?w=&h=&fit=&margin=` — the server frames
+  to exactly that canvas (contain or cover, with a margin), for panels that
+  can't do CSS. `fit=cover` never upscales past the master; oversized canvases
+  get the native-resolution center region instead.
 
 `PAPERBOY_WIDTH` is the master width we render and cache at (the quality ceiling);
 everything downscales from it, never up. One master render feeds a 13" Visionect,
@@ -338,9 +345,13 @@ A few decisions worth writing down so we don't re-litigate them:
   and fills in over time. That's the main reason to fetch eagerly in the
   background — a lazy, request-driven design can never build history.
 - PNGs are cache, not state. See [storage layout](#storage-layout).
-- Per-device advance-on-load rotation. A device's own refresh cadence drives it;
-  the cursor is per device (keyed by ?device= or IP), so there's no global index
-  to desync and non-device requests stay pure reads.
+- Time-driven rotation, config in the URL. Which paper shows is a pure function
+  of the clock and the provisioned URL, so every request is an idempotent read
+  (cacheable, preview-safe, restart-proof), displays sharing a playlist stay in
+  sync, and the slot boundary doubles as the refresh hint every device class
+  gets in its own transport (max-age/ETag, TRMNL refresh_rate, okular.Sleep).
+  There is deliberately no server-side Display resource to manage — Visionect
+  panels already have their own server, and everything else takes a URL.
 - Both health endpoints stay. paperboy should run under compose *or* k8s, and the
   liveness/readiness split costs compose nothing while being load-bearing under an
   orchestrator.

@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"image/color"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -188,5 +192,225 @@ func TestDeviceID(t *testing.T) {
 	r.RemoteAddr = "10.1.2.3:5555"
 	if got := deviceID(r); got != "ip:10.1.2.3" {
 		t.Errorf("ip fallback = %q, want ip:10.1.2.3", got)
+	}
+}
+
+func TestRotationPNG_IdempotentWithCachingHeaders(t *testing.T) {
+	srv := newTestServer(t)
+
+	resp := get(t, srv.URL+"/rotation.png?interval=1h")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/rotation.png = %d, want 200", resp.StatusCode)
+	}
+	etag := resp.Header.Get("ETag")
+	if len(etag) < 4 || etag[0] != '"' {
+		t.Errorf("ETag = %q, want a quoted validator", etag)
+	}
+	if cc := resp.Header.Get("Cache-Control"); !strings.HasPrefix(cc, "public, max-age=") {
+		t.Errorf("Cache-Control = %q, want public, max-age=<to boundary>", cc)
+	}
+	if next := resp.Header.Get("X-Paperboy-Next-Change"); next == "" {
+		t.Error("missing X-Paperboy-Next-Change refresh hint")
+	}
+	if resp.Header.Get("X-Paperboy-Slot") == "" {
+		t.Error("missing X-Paperboy-Slot")
+	}
+
+	// Idempotent: a second fetch at the same instant serves the same source.
+	resp2 := get(t, srv.URL+"/rotation.png?interval=1h")
+	if a, b := resp.Header.Get("X-Paperboy-Source"), resp2.Header.Get("X-Paperboy-Source"); a != b {
+		t.Errorf("two reads changed the answer: %q then %q — rotation reads must not mutate", a, b)
+	}
+
+	// Conditional GET: matching If-None-Match yields 304 with no body.
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/rotation.png?interval=1h", nil)
+	req.Header.Set("If-None-Match", etag)
+	cond, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("conditional GET: %v", err)
+	}
+	defer func() { _ = cond.Body.Close() }()
+	if cond.StatusCode != http.StatusNotModified {
+		t.Errorf("If-None-Match = %d, want 304", cond.StatusCode)
+	}
+}
+
+func TestRotationPNG_ExplicitSlotAndSubstitution(t *testing.T) {
+	srv := newTestServer(t) // sources a (content), b (empty)
+
+	// slot=0 selects a directly.
+	resp := get(t, srv.URL+"/rotation.png?slot=0")
+	if got := resp.Header.Get("X-Paperboy-Source"); got != "a" {
+		t.Errorf("slot=0 source = %q, want a", got)
+	}
+	if resp.Header.Get("X-Paperboy-Stale") != "" {
+		t.Error("direct slot must not be substituted")
+	}
+
+	// slot=1 selects b, which has nothing archived: deterministic substitution
+	// to a, marked stale.
+	resp = get(t, srv.URL+"/rotation.png?slot=1")
+	if got := resp.Header.Get("X-Paperboy-Source"); got != "a" {
+		t.Errorf("slot=1 source = %q, want substituted a", got)
+	}
+	if resp.Header.Get("X-Paperboy-Stale") != "true" {
+		t.Error("substituted slot must carry X-Paperboy-Stale")
+	}
+}
+
+func TestRotationPNG_ErrorMapping(t *testing.T) {
+	srv := newTestServer(t)
+	for _, q := range []string{"interval=5s", "interval=25h", "slot=abc", "phase=x"} {
+		if resp := get(t, srv.URL+"/rotation.png?"+q); resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("?%s = %d, want 400", q, resp.StatusCode)
+		}
+	}
+	if resp := get(t, srv.URL+"/rotation.png?sources=nope"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("unknown sources filter = %d, want 400", resp.StatusCode)
+	}
+	// b is configured but has nothing archived: an empty rotation is 503
+	// (retryable cold start), not a caller error.
+	if resp := get(t, srv.URL+"/rotation.png?sources=b"); resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("empty rotation = %d, want 503", resp.StatusCode)
+	}
+}
+
+func TestRotationPage_SelfPacingHTML(t *testing.T) {
+	srv := newTestServer(t)
+	resp := get(t, srv.URL+"/rotation?interval=30m&phase=1")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/rotation = %d, want 200", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	for _, want := range []string{
+		`src="/rotation.png?`, // server-rendered initial image (correct without JS)
+		"okular.Sleep",        // Visionect panel-sleep integration
+		`content="43200"`,     // 12h meta-refresh watchdog
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("display page missing %q", want)
+		}
+	}
+	// html/template pads JS-context interpolations with spaces; match loosely.
+	for name, re := range map[string]*regexp.Regexp{
+		"dwell seconds": regexp.MustCompile(`var I =\s*1800\s*;`),
+		"phase":         regexp.MustCompile(`var phase =\s*1\s*;`),
+	} {
+		if !re.MatchString(html) {
+			t.Errorf("display page missing %s (%s)", name, re)
+		}
+	}
+}
+
+func TestTRMNLEnvelope(t *testing.T) {
+	srv := newTestServer(t)
+	resp := get(t, srv.URL+"/api/display?interval=30m&w=800&h=480")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/api/display = %d, want 200", resp.StatusCode)
+	}
+	var env struct {
+		ImageURL       string `json:"image_url"`
+		Filename       string `json:"filename"`
+		RefreshRate    int    `json:"refresh_rate"`
+		UpdateFirmware bool   `json:"update_firmware"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+		t.Fatalf("decode envelope: %v", err)
+	}
+	if !strings.Contains(env.ImageURL, "/rotation.png?") ||
+		!strings.Contains(env.ImageURL, "slot=") ||
+		!strings.Contains(env.ImageURL, "w=800") ||
+		!strings.HasPrefix(env.ImageURL, "http://") {
+		t.Errorf("image_url = %q, want absolute slot-explicit /rotation.png URL", env.ImageURL)
+	}
+	if env.RefreshRate < 60 {
+		t.Errorf("refresh_rate = %d, want >= 60", env.RefreshRate)
+	}
+	// filename is the firmware's skip-repaint identity: source + edition date
+	// + extension, never the slot (a one-source rotation must not re-flash the
+	// same paper every slot).
+	if !strings.HasPrefix(env.Filename, "a-") || !strings.HasSuffix(env.Filename, ".png") ||
+		strings.Contains(env.Filename, "slot") {
+		t.Errorf("filename = %q, want a-<date>.png with no slot", env.Filename)
+	}
+	if env.UpdateFirmware {
+		t.Error("update_firmware must be false")
+	}
+}
+
+func TestPaper_ConditionalGET(t *testing.T) {
+	srv := newTestServer(t)
+	resp := get(t, srv.URL+"/paper/a.png")
+	etag := resp.Header.Get("ETag")
+	if etag == "" {
+		t.Fatal("missing ETag on /paper")
+	}
+	if cc := resp.Header.Get("Cache-Control"); !strings.HasPrefix(cc, "public") {
+		t.Errorf("Cache-Control = %q, want public", cc)
+	}
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/paper/a.png", nil)
+	req.Header.Set("If-None-Match", etag)
+	cond, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("conditional GET: %v", err)
+	}
+	defer func() { _ = cond.Body.Close() }()
+	if cond.StatusCode != http.StatusNotModified {
+		t.Errorf("If-None-Match = %d, want 304", cond.StatusCode)
+	}
+}
+
+func TestPaper_ConfiguredButEmptyIs503(t *testing.T) {
+	// b is configured but the reconciler hasn't filled it: retryable (503),
+	// not a caller error and never a 500.
+	srv := newTestServer(t)
+	if resp := get(t, srv.URL+"/paper/b.png"); resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("/paper/b.png = %d, want 503", resp.StatusCode)
+	}
+}
+
+func TestCurrent_UnknownSourcesFilterIs400(t *testing.T) {
+	srv := newTestServer(t)
+	if resp := get(t, srv.URL+"/current.png?sources=nope"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("/current.png?sources=nope = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestRotationPage_Validation(t *testing.T) {
+	srv := newTestServer(t)
+	// A typo'd sources filter must fail loudly at provisioning time, not
+	// render a permanently broken e-ink frame.
+	if resp := get(t, srv.URL+"/rotation?sources=nope"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("/rotation?sources=nope = %d, want 400", resp.StatusCode)
+	}
+	// ?slot= pins a single paper and belongs on the image endpoint.
+	if resp := get(t, srv.URL+"/rotation?slot=5"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("/rotation?slot=5 = %d, want 400", resp.StatusCode)
+	}
+	// A cold (still-filling) archive is NOT an error: the page retries.
+	if resp := get(t, srv.URL+"/rotation?sources=b"); resp.StatusCode != http.StatusOK {
+		t.Errorf("/rotation?sources=b (empty archive) = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestEtagMatches(t *testing.T) {
+	const e = `"abc123"`
+	cases := []struct {
+		header string
+		want   bool
+	}{
+		{`"abc123"`, true},
+		{`W/"abc123"`, true},                // weak comparison
+		{`"other", "abc123"`, true},         // list membership
+		{`"other", W/"abc123" , "x"`, true}, // list + weak + spacing
+		{`*`, true},                         // wildcard
+		{`"other"`, false},
+		{``, false},
+	}
+	for _, c := range cases {
+		if got := etagMatches(c.header, e); got != c.want {
+			t.Errorf("etagMatches(%q) = %v, want %v", c.header, got, c.want)
+		}
 	}
 }
