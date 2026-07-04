@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,13 +25,12 @@ import (
 )
 
 type envConfig struct {
-	Port           int           `env:"PAPERBOY_PORT" envDefault:"8080"`
-	DataDir        string        `env:"PAPERBOY_DATA_DIR" envDefault:"./data"`
-	Width          int           `env:"PAPERBOY_WIDTH" envDefault:"1600"`
-	LogLevel       string        `env:"PAPERBOY_LOG_LEVEL" envDefault:"info"`
-	RotateInterval time.Duration `env:"PAPERBOY_ROTATE_INTERVAL" envDefault:"1h"`
-	PollInterval   time.Duration `env:"PAPERBOY_POLL_INTERVAL" envDefault:"30m"`
-	ArchiveDays    int           `env:"PAPERBOY_ARCHIVE_DAYS" envDefault:"14"`
+	Port         int           `env:"PAPERBOY_PORT" envDefault:"8080"`
+	DataDir      string        `env:"PAPERBOY_DATA_DIR" envDefault:"./data"`
+	Width        int           `env:"PAPERBOY_WIDTH" envDefault:"1600"`
+	LogLevel     string        `env:"PAPERBOY_LOG_LEVEL" envDefault:"info"`
+	PollInterval time.Duration `env:"PAPERBOY_POLL_INTERVAL" envDefault:"30m"`
+	ArchiveDays  int           `env:"PAPERBOY_ARCHIVE_DAYS" envDefault:"14"`
 }
 
 func main() {
@@ -55,12 +56,11 @@ func main() {
 	slog.SetDefault(logger)
 
 	p, err := paperboy.New(paperboy.Config{
-		DataDir:        ec.DataDir,
-		Width:          ec.Width,
-		RotateInterval: ec.RotateInterval,
-		PollInterval:   ec.PollInterval,
-		ArchiveDays:    ec.ArchiveDays,
-		Logger:         logger,
+		DataDir:      ec.DataDir,
+		Width:        ec.Width,
+		PollInterval: ec.PollInterval,
+		ArchiveDays:  ec.ArchiveDays,
+		Logger:       logger,
 	})
 	if err != nil {
 		logger.Error("init paperboy", "err", err)
@@ -77,6 +77,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(loggingMW(logger))
 
+	r.Get("/", handleDisplay)
 	r.Get("/health", handleHealth)
 	r.Get("/healthz", handleReadiness(p))
 	r.Get("/sources", handleSources(p))
@@ -106,6 +107,71 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown error", "err", err)
 	}
+}
+
+// displayHTML is the zero-config "point your display here" page. It fills the
+// viewport, detects its own size, and requests an exactly-fitted image — so a
+// device never has to be told its dimensions. Any rotation params on the page
+// URL (sources/interval/phase) pass through to the image request. It's static:
+// all the per-device logic runs client-side from window.location.
+const displayHTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>paperboy</title>
+<style>
+  :root { --pad: 3vmin; }
+  html, body { margin: 0; height: 100%; background: #fff; }
+  body { box-sizing: border-box; padding: var(--pad); }
+  .sheet { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  body.cover .sheet { object-fit: cover; }
+</style>
+</head>
+<body>
+<img id="p" class="sheet" alt="">
+<noscript><img class="sheet" src="/current.png" alt=""></noscript>
+<script>
+(function () {
+  var q = new URLSearchParams(window.location.search);
+
+  // Framing is done here in CSS, driven by the page URL:
+  //   ?margin=<n>  -> padding, in vmin (default 3)
+  //   ?fit=cover   -> object-fit: cover (crop to fill) instead of contain
+  if (q.has('margin')) {
+    document.documentElement.style.setProperty('--pad', (parseFloat(q.get('margin')) || 0) + 'vmin');
+  }
+  if (q.get('fit') === 'cover') document.body.classList.add('cover');
+
+  // Fetch the image exactly once per load — each fetch advances this device's
+  // rotation cursor server-side, so one fetch == one advance. We ask only for a
+  // viewport-width source (no server framing: margin=0); CSS handles fit/margin,
+  // and reflows on resize on its own, so we don't re-fetch on resize. sources
+  // and device pass through from the page URL.
+  var img = document.getElementById('p');
+  function load() {
+    var p = new URLSearchParams();
+    ['sources', 'device'].forEach(function (k) { if (q.has(k)) p.set(k, q.get(k)); });
+    p.set('w', Math.round(window.innerWidth * (window.devicePixelRatio || 1)));
+    p.set('margin', '0');
+    p.set('_', Date.now());
+    img.src = '/current.png?' + p.toString();
+  }
+  load();
+
+  // Optional auto-advance for always-on browsers: ?refresh=<seconds>.
+  var refresh = parseInt(q.get('refresh') || '0', 10);
+  if (refresh > 0) setInterval(load, refresh * 1000);
+})();
+</script>
+</body>
+</html>
+`
+
+func handleDisplay(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(displayHTML))
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -158,6 +224,7 @@ func handleCurrent(p *paperboy.Paperboy) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		opts.Device = deviceID(r)
 		res, err := p.RenderCurrent(r.Context(), opts)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -188,18 +255,81 @@ func handlePaper(p *paperboy.Paperboy) http.HandlerFunc {
 //
 // Supported params:
 //
-//	?w=<int>   output width in pixels; aspect ratio preserved.
-//	           Capped at the master width (no upscaling).
+//	?w=, ?h=      target canvas in pixels. Both -> fit onto that exact canvas;
+//	              one -> the other follows the page aspect. The page is never
+//	              upscaled past its master resolution.
+//	?fit=         contain (default) or cover — only when both w and h are set.
+//	?margin=      background border, percent of the shorter side. 0 disables it.
+//	?sources=     comma-separated source IDs to rotate over (/current.png only).
+//	?device=      device id for per-device rotation (/current.png only); if
+//	              absent the client IP is used. Set on opts by the handler.
 func parseRenderOpts(r *http.Request) (paperboy.RenderOptions, error) {
+	q := r.URL.Query()
 	var opts paperboy.RenderOptions
-	if ws := r.URL.Query().Get("w"); ws != "" {
-		v, err := strconv.Atoi(ws)
-		if err != nil || v <= 0 {
-			return opts, fmt.Errorf("invalid w=%q (want positive integer)", ws)
+
+	posInt := func(key string) (int, error) {
+		s := q.Get(key)
+		if s == "" {
+			return 0, nil
 		}
-		opts.OutputWidth = v
+		v, err := strconv.Atoi(s)
+		if err != nil || v <= 0 {
+			return 0, fmt.Errorf("invalid %s=%q (want a positive integer)", key, s)
+		}
+		return v, nil
+	}
+
+	var err error
+	if opts.OutputWidth, err = posInt("w"); err != nil {
+		return opts, err
+	}
+	if opts.OutputHeight, err = posInt("h"); err != nil {
+		return opts, err
+	}
+	if fit := q.Get("fit"); fit != "" {
+		switch paperboy.FitMode(fit) {
+		case paperboy.FitContain, paperboy.FitCover:
+			opts.Fit = paperboy.FitMode(fit)
+		default:
+			return opts, fmt.Errorf("invalid fit=%q (want contain or cover)", fit)
+		}
+	}
+	if ms := q.Get("margin"); ms != "" {
+		v, err := strconv.ParseFloat(ms, 64)
+		if err != nil || v < 0 {
+			return opts, fmt.Errorf("invalid margin=%q (want a non-negative percent)", ms)
+		}
+		if v == 0 {
+			opts.MarginPct = -1 // explicit "no margin"
+		} else {
+			opts.MarginPct = v
+		}
+	}
+	if src := q.Get("sources"); src != "" {
+		for _, id := range strings.Split(src, ",") {
+			if id = strings.TrimSpace(id); id != "" {
+				opts.Sources = append(opts.Sources, id)
+			}
+		}
 	}
 	return opts, nil
+}
+
+// deviceID resolves the requester's rotation identity: an explicit ?device=
+// wins (stable, user-chosen); otherwise the connecting IP (r.RemoteAddr) —
+// zero-config on a LAN, where that's the device itself. We don't trust
+// X-Forwarded-For, so behind a proxy set ?device= per display. The scheme
+// prefix keeps strategies from colliding and leaves room for more (cookie,
+// signed header, token) without touching callers.
+func deviceID(r *http.Request) string {
+	if d := strings.TrimSpace(r.URL.Query().Get("device")); d != "" {
+		return "name:" + d
+	}
+	host := r.RemoteAddr
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return "ip:" + host
 }
 
 func writeImage(w http.ResponseWriter, res *paperboy.Result) {

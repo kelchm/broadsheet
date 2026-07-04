@@ -24,11 +24,14 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
 	_ "image/png" // register PNG decoder for image.Decode
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -57,9 +60,54 @@ var ErrNoneAvailable = errors.New("paperboy: no editions available yet")
 
 const (
 	defaultWidth       = 1600
-	defaultRotate      = time.Hour
 	defaultPoll        = 30 * time.Minute
 	defaultArchiveDays = 14
+	defaultMarginPct   = 3.0
+)
+
+// Cursors tracks each device's position in the rotation. RenderCurrent advances
+// a device's cursor on every call — that's "rotate on each load."
+//
+// The default implementation is in-memory (see Config.Cursors). If devices
+// become first-class, configurable entities, provide a persistent implementation
+// (e.g. SQLite-backed) and nothing else in the engine changes.
+type Cursors interface {
+	// Next returns the source index to serve for device now (in [0,n)) and
+	// advances the device's position by one. n is the number of sources in the
+	// rotation for this call.
+	Next(device string, n int) int
+}
+
+type memCursors struct {
+	mu sync.Mutex
+	m  map[string]int
+}
+
+func newMemCursors() *memCursors { return &memCursors{m: make(map[string]int)} }
+
+func (c *memCursors) Next(device string, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	i := c.m[device]
+	c.m[device] = i + 1
+	return i % n
+}
+
+// FitMode controls how the page is placed on a target canvas when both a width
+// and height are given. Used by the PNG path for devices that consume a raw,
+// exactly-sized image (no browser to do CSS); the HTML display page frames with
+// CSS instead.
+type FitMode string
+
+const (
+	// FitContain scales the page to fit inside the canvas, letterboxed with the
+	// background color (a matted look — good for portrait panels).
+	FitContain FitMode = "contain"
+	// FitCover scales the page to fill the canvas, cropping the overflow.
+	FitCover FitMode = "cover"
 )
 
 // Config holds runtime configuration for a Paperboy instance.
@@ -70,9 +118,6 @@ type Config struct {
 	// Width is the master render width in pixels (quality ceiling). Default 1600.
 	Width int
 
-	// RotateInterval is how long each source stays the /current slot. Default 1h.
-	RotateInterval time.Duration
-
 	// PollInterval is the reconciler cadence. Default 30m.
 	PollInterval time.Duration
 
@@ -82,15 +127,42 @@ type Config struct {
 	// Sources optionally overrides the default source registry.
 	Sources []Source
 
+	// Cursors optionally overrides the per-device rotation store. Default is
+	// in-memory (resets on restart); provide a persistent one to survive it.
+	Cursors Cursors
+
 	// Logger; if nil, slog.Default() is used.
 	Logger *slog.Logger
 }
 
-// RenderOptions are per-call overrides. The zero value returns the master-width
-// PNG untouched; OutputWidth resizes down from the master (values above the
-// master are capped — no upscaling).
+// RenderOptions are per-call overrides.
+//
+// Framing (OutputHeight/Fit/MarginPct) is for the PNG path — devices that pull a
+// raw, exactly-sized image and can't frame it themselves. The HTML display page
+// ignores these and frames with CSS instead.
 type RenderOptions struct {
-	OutputWidth int
+	// OutputWidth / OutputHeight are the target canvas in pixels. If both are
+	// set, the page is fit onto that exact canvas (see Fit). If only one is set,
+	// the other follows the page's aspect ratio. The page is never upscaled past
+	// its master resolution; a larger canvas just gets more background.
+	OutputWidth  int
+	OutputHeight int
+
+	// Fit applies only when both dimensions are set. Default FitContain.
+	Fit FitMode
+
+	// MarginPct is the background border as a percent of the canvas's shorter
+	// side. 0 means the default (defaultMarginPct); a negative value means no
+	// margin.
+	MarginPct float64
+
+	// Sources and Device are the rotation policy for RenderCurrent (ignored by
+	// RenderFor). Sources restricts and orders the rotation to a subset of source
+	// IDs (empty = all). Device identifies the requester: each device advances
+	// its own cursor on every call ("rotate on each load"). Empty is a valid
+	// key (the default device); the server fills it from ?device= or client IP.
+	Sources []string
+	Device  string
 }
 
 // Result is what a render call returns.
@@ -125,7 +197,7 @@ type Paperboy struct {
 	store      *cache.Store
 	reconciler *reconcile.Reconciler
 	cacheDir   string
-	rotate     time.Duration
+	cursors    Cursors
 	now        func() time.Time
 }
 
@@ -137,9 +209,6 @@ func New(cfg Config) (*Paperboy, error) {
 	if cfg.Width == 0 {
 		cfg.Width = defaultWidth
 	}
-	if cfg.RotateInterval <= 0 {
-		cfg.RotateInterval = defaultRotate
-	}
 	if cfg.PollInterval <= 0 {
 		cfg.PollInterval = defaultPoll
 	}
@@ -148,6 +217,10 @@ func New(cfg Config) (*Paperboy, error) {
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
+	}
+	cursors := cfg.Cursors
+	if cursors == nil {
+		cursors = newMemCursors()
 	}
 
 	srcs := cfg.Sources
@@ -187,7 +260,7 @@ func New(cfg Config) (*Paperboy, error) {
 		store:      store,
 		reconciler: rec,
 		cacheDir:   cacheDir,
-		rotate:     cfg.RotateInterval,
+		cursors:    cursors,
 		now:        time.Now,
 	}, nil
 }
@@ -213,20 +286,27 @@ func (p *Paperboy) Refresh(ctx context.Context, sourceID string) error {
 	return nil
 }
 
-// RenderCurrent returns the current rotation slot — a deterministic function of
-// the clock, so it is a safe read that does not mutate anything. Falls back to
-// the newest archived edition of any source if the slot's source has none yet.
+// RenderCurrent returns the current paper for the requesting device and advances
+// that device's rotation cursor by one — so each load moves to the next paper.
+// The device's own refresh cadence sets the pace; there is no server-side rotate
+// clock. Falls back to the newest archived edition of any source if the selected
+// source has none yet.
 func (p *Paperboy) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*Result, error) {
-	n := len(p.sources)
-	if n == 0 {
-		return nil, fmt.Errorf("paperboy: no sources configured")
+	o := optsOrDefault(opts)
+	srcs := p.sources
+	if len(o.Sources) > 0 {
+		srcs = filterSources(p.sources, o.Sources)
 	}
-	src := p.sources[rotationSlot(p.now(), p.rotate, n)]
+	if len(srcs) == 0 {
+		return nil, fmt.Errorf("paperboy: no sources match the request")
+	}
+
+	src := srcs[p.cursors.Next(o.Device, len(srcs))]
 	if entry, ok := p.archive.Newest(src.ID); ok {
-		return p.serve(ctx, entry, false, optsOrDefault(opts))
+		return p.serve(ctx, entry, false, o)
 	}
 	if entry, ok := p.archive.NewestAny(); ok {
-		return p.serve(ctx, entry, true, optsOrDefault(opts))
+		return p.serve(ctx, entry, true, o)
 	}
 	return nil, ErrNoneAvailable
 }
@@ -241,18 +321,6 @@ func (p *Paperboy) RenderFor(ctx context.Context, sourceID string, opts ...Rende
 		return nil, fmt.Errorf("paperboy: no archived edition for %s yet", sourceID)
 	}
 	return p.serve(ctx, entry, false, optsOrDefault(opts))
-}
-
-// rotationSlot picks the current source index as a pure function of the clock.
-func rotationSlot(now time.Time, interval time.Duration, n int) int {
-	if n <= 0 {
-		return 0
-	}
-	secs := int64(interval / time.Second)
-	if secs <= 0 {
-		secs = 1
-	}
-	return int((now.Unix() / secs) % int64(n))
 }
 
 func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, opts RenderOptions) (*Result, error) {
@@ -270,22 +338,15 @@ func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, o
 	if err != nil {
 		return nil, fmt.Errorf("paperboy: read render: %w", err)
 	}
-	img, _, err := image.Decode(bytes.NewReader(data))
+	page, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("paperboy: decode render: %w", err)
 	}
 
-	out := opts.OutputWidth
-	if out > master {
-		out = master
-	}
-	if out > 0 && out != img.Bounds().Dx() {
-		img = imaging.Resize(img, out, 0, imaging.Lanczos)
-		var buf bytes.Buffer
-		if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
-			return nil, fmt.Errorf("paperboy: encode resized: %w", err)
-		}
-		data = buf.Bytes()
+	out := compose(page, opts, master)
+	var buf bytes.Buffer
+	if err := imaging.Encode(&buf, out, imaging.PNG); err != nil {
+		return nil, fmt.Errorf("paperboy: encode: %w", err)
 	}
 
 	daysOld := int(p.now().UTC().Sub(entry.Date).Hours()) / 24
@@ -293,14 +354,76 @@ func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, o
 		daysOld = 0
 	}
 	return &Result{
-		Image:     data,
+		Image:     buf.Bytes(),
 		SourceID:  entry.SourceID,
 		FetchedAt: entry.Date,
 		Stale:     stale,
 		DaysOld:   daysOld,
-		Width:     img.Bounds().Dx(),
-		Height:    img.Bounds().Dy(),
+		Width:     out.Bounds().Dx(),
+		Height:    out.Bounds().Dy(),
 	}, nil
+}
+
+// filterSources returns the sources whose IDs appear in ids, in the order ids
+// lists them (so the caller controls the rotation sequence). Unknown IDs are
+// skipped.
+func filterSources(all []source.Source, ids []string) []source.Source {
+	out := make([]source.Source, 0, len(ids))
+	for _, id := range ids {
+		if s := source.ByID(all, id); s != nil {
+			out = append(out, *s)
+		}
+	}
+	return out
+}
+
+// compose frames the page for a device that consumes a raw PNG: it fits the page
+// onto the requested canvas (or the page's own aspect if only one dimension is
+// given), on a white background with a margin so content never touches the edge.
+// The page is never upscaled past its master resolution. The HTML display page
+// does this in CSS instead and leaves OutputHeight/Fit/MarginPct unset.
+func compose(page image.Image, o RenderOptions, master int) image.Image {
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	pageH := page.Bounds().Dy()
+
+	mp := o.MarginPct
+	switch {
+	case mp == 0:
+		mp = defaultMarginPct
+	case mp < 0:
+		mp = 0
+	}
+	marginPx := func(basis int) int { return int(math.Round(mp / 100 * float64(basis))) }
+
+	w, h := o.OutputWidth, o.OutputHeight
+	var result image.Image
+	switch {
+	case w > 0 && h > 0:
+		m := marginPx(min(w, h))
+		boxW, boxH := max(1, w-2*m), max(1, h-2*m)
+		if o.Fit == FitCover {
+			result = imaging.PasteCenter(imaging.New(w, h, white),
+				imaging.Fill(page, boxW, boxH, imaging.Center, imaging.Lanczos))
+		} else {
+			result = imaging.PasteCenter(imaging.New(w, h, white),
+				imaging.Fit(page, boxW, boxH, imaging.Lanczos)) // contain, never upscales
+		}
+	case w > 0:
+		m := marginPx(w)
+		content := imaging.Resize(page, min(max(1, w-2*m), master), 0, imaging.Lanczos)
+		result = imaging.PasteCenter(imaging.New(w, content.Bounds().Dy()+2*m, white), content)
+	case h > 0:
+		m := marginPx(h)
+		content := imaging.Resize(page, 0, min(max(1, h-2*m), pageH), imaging.Lanczos)
+		result = imaging.PasteCenter(imaging.New(content.Bounds().Dx()+2*m, h, white), content)
+	default:
+		m := marginPx(master)
+		if m == 0 {
+			return page
+		}
+		result = imaging.PasteCenter(imaging.New(page.Bounds().Dx()+2*m, pageH+2*m, white), page)
+	}
+	return imaging.Grayscale(result)
 }
 
 func optsOrDefault(opts []RenderOptions) RenderOptions {
