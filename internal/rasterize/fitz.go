@@ -3,6 +3,7 @@ package rasterize
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -10,28 +11,25 @@ import (
 	"github.com/gen2brain/go-fitz"
 )
 
-// FitzRasterizer renders PDFs using go-fitz, which bundles MuPDF via FFI
-// (no CGo, no system libs required on supported platforms).
-//
-// This is the default rasterizer — fast, native, and requires zero setup
-// beyond `go get`.
+// FitzRasterizer renders PDFs using go-fitz, which links the bundled MuPDF via
+// cgo on default builds (an FFI/purego variant exists behind go-fitz's nocgo
+// build tag). No external process, no system PDF libraries.
 type FitzRasterizer struct {
-	// DPI is the render DPI. Default 300.
+	// DPI forces a fixed render DPI. 0 (the default) derives the DPI from the
+	// page bounds so the raster comes out ~2x the target width — enough
+	// supersampling for a sharp Lanczos downscale without the fixed-300-DPI
+	// memory spike a large broadsheet incurs (a full page at 300 DPI is a
+	// ~100MB+ RGBA allocation before grayscale/resize copies).
 	DPI float64
 }
 
-// NewFitz returns a FitzRasterizer with defaults.
+// NewFitz returns a FitzRasterizer with defaults (bounds-derived DPI).
 func NewFitz() *FitzRasterizer {
-	return &FitzRasterizer{DPI: 300}
+	return &FitzRasterizer{}
 }
 
 // Rasterize implements Rasterizer.
-func (f *FitzRasterizer) Rasterize(_ context.Context, pdfPath, pngPath string, width int) error {
-	dpi := f.DPI
-	if dpi == 0 {
-		dpi = 300
-	}
-
+func (f *FitzRasterizer) Rasterize(ctx context.Context, pdfPath, pngPath string, width int) error {
 	doc, err := fitz.New(pdfPath)
 	if err != nil {
 		return fmt.Errorf("rasterize: open pdf %s: %w", pdfPath, err)
@@ -42,9 +40,22 @@ func (f *FitzRasterizer) Rasterize(_ context.Context, pdfPath, pngPath string, w
 		return fmt.Errorf("rasterize: pdf %s has no pages", pdfPath)
 	}
 
+	dpi := f.DPI
+	if dpi <= 0 {
+		dpi = deriveDPI(doc, width)
+	}
+
+	// The stages below each allocate a full-page image; give a canceled caller
+	// its answer between them instead of burning CPU on a render nobody wants.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("rasterize: %w", err)
+	}
 	img, err := doc.ImageDPI(0, dpi)
 	if err != nil {
 		return fmt.Errorf("rasterize: render page 0: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("rasterize: %w", err)
 	}
 
 	// Grayscale + resize to target width, preserving aspect ratio.
@@ -76,4 +87,18 @@ func (f *FitzRasterizer) Rasterize(_ context.Context, pdfPath, pngPath string, w
 		return fmt.Errorf("rasterize: rename png %s: %w", pngPath, err)
 	}
 	return nil
+}
+
+// deriveDPI picks the render DPI that makes page 0 come out about twice the
+// target pixel width, clamped to [72, 300]. Page bounds are in points
+// (1/72 inch), so dpi = 72 * desiredPx / boundsWidthPts. Falls back to 300
+// (the old fixed value) when bounds are unavailable.
+func deriveDPI(doc *fitz.Document, width int) float64 {
+	const minDPI, maxDPI = 72.0, 300.0
+	bounds, err := doc.Bound(0)
+	if err != nil || bounds.Dx() <= 0 || width <= 0 {
+		return maxDPI
+	}
+	dpi := 72 * 2 * float64(width) / float64(bounds.Dx())
+	return math.Min(maxDPI, math.Max(minDPI, dpi))
 }

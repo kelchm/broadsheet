@@ -72,22 +72,10 @@ func main() {
 	defer stop()
 	p.StartReconciler(ctx)
 
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.Recoverer)
-	r.Use(loggingMW(logger))
-
-	r.Get("/", handleDisplay)
-	r.Get("/health", handleHealth)
-	r.Get("/healthz", handleReadiness(p))
-	r.Get("/sources", handleSources(p))
-	r.Get("/current.png", handleCurrent(p))
-	r.Get("/paper/{id}.png", handlePaper(p))
-
 	addr := fmt.Sprintf(":%d", ec.Port)
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           r,
+		Handler:           newRouter(p, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -107,6 +95,23 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown error", "err", err)
 	}
+}
+
+// newRouter assembles the real route table. Kept separate from main() so
+// httptest can exercise exactly what production serves.
+func newRouter(p *paperboy.Paperboy, logger *slog.Logger) http.Handler {
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Recoverer)
+	r.Use(loggingMW(logger))
+
+	r.Get("/", handleDisplay)
+	r.Get("/health", handleHealth)
+	r.Get("/healthz", handleReadiness(p))
+	r.Get("/sources", handleSources(p))
+	r.Get("/current.png", handleCurrent(p))
+	r.Get("/paper/{id}.png", handlePaper(p))
+	return r
 }
 
 // displayHTML is the zero-config "point your display here" page. It fills the

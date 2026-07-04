@@ -37,7 +37,8 @@ per-device cursor, not the global GET-mutation the first cut had.)
 ```
 <PAPERBOY_DATA_DIR>/
   archive/<source-id>/<YYYYMMDD>.pdf   # durable source of truth; kept N days
-  cache/<source-id>/<YYYYMMDD>.png     # disposable master renders; evict anytime
+  cache/<source-id>/<YYYYMMDD>.w<W>.png # disposable master renders (keyed by
+                                        # edition date + master width); evict anytime
   state.json                           # per-source health + provider ETags
 ```
 
@@ -47,12 +48,17 @@ Two directories, very different lifetimes:
   retention policy, and what edition dates are keyed on. Written atomically
   (temp + rename).
 - `cache/` — the PNGs aren't state. They're just renders derived from a PDF, with
-  no retention of their own. Evict any PNG whenever you like (LRU, or drop the
-  ones whose PDF aged out) and you've lost a few hundred milliseconds of
-  re-render, nothing more. `rm -rf cache/` is always safe.
+  the archive's retention applied to them (aged-out renders are pruned each
+  cycle). Evict any PNG whenever you like and you've lost a few hundred
+  milliseconds of re-render, nothing more. `rm -rf cache/` is always safe.
+
+`state.json` is in the same spirit: it holds only re-derivable bookkeeping
+(health timestamps + provider ETags), so a corrupt file is set aside as
+`state.json.corrupt` and the server starts fresh rather than refusing to boot.
 
 Everything's keyed by edition date (`YYYYMMDD`, from the PDF's `Last-Modified`
-header), not by the day-of-month we happened to request — see [trusting the
+header, falling back to the probed folder's date if that header is missing),
+not by the day-of-month we happened to request — see [trusting the
 origin](#trusting-the-origin).
 
 ## Providers
@@ -198,15 +204,21 @@ tomorrow window as the date rolls forward.
 Rendering turns an archived artifact into a master-width grayscale PNG in
 `cache/`:
 
-- `MediaPDF` — rasterize page 1 (go-fitz / MuPDF), grayscale, resize to the
-  master width, write atomically.
+- `MediaPDF` — rasterize page 1 (go-fitz / MuPDF) at a DPI derived from the
+  page bounds (~2x the master width, clamped to 300 — a fixed 300 DPI was a
+  ~100MB+ allocation per broadsheet), grayscale, resize to the master width,
+  write atomically.
 - `MediaImage` — decode, grayscale, resize, write.
 
-It's lazy: a PNG is produced the first time someone asks for that (source, date)
-and cached after. Pre-rendering in the reconciler is a possible optimization
-later — it'd make every request instant at the cost of rendering papers nobody
-looks at — but it wouldn't change the model (the PDF archive is still the source
-of truth), so it can be added whenever without disruption.
+It's lazy: a PNG is produced the first time someone asks for that (source,
+date, master width) and cached after. Freshness is checked against the archived
+artifact's mtime, so a re-posted (corrected) edition re-renders instead of
+serving the stale PNG, and concurrent cold-cache requests for the same PNG are
+collapsed into a single render (singleflight). The cache is pruned on the same
+retention as the archive. Pre-rendering in the reconciler is a possible
+optimization later — it'd make every request instant at the cost of rendering
+papers nobody looks at — but it wouldn't change the model (the PDF archive is
+still the source of truth), so it can be added whenever without disruption.
 
 Per-request `?w=` resizes down from the cached master (see [sizing](#sizing));
 those per-width outputs are computed per request, not stored.

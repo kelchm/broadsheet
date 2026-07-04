@@ -7,6 +7,7 @@
 package freedomforum
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -57,7 +58,7 @@ func (f FreedomForum) Poll(ctx context.Context, deps source.Deps, seen map[strin
 		day := now.UTC().AddDate(0, 0, delta)
 		url := f.url(day)
 
-		ed, etag, status, err := fetchConditional(ctx, client, url, seen[url])
+		ed, etag, status, err := fetchConditional(ctx, client, url, seen[url], day)
 		if err != nil {
 			// A transient error on one folder must not sink the others; keep the
 			// version we had so a later poll can still short-circuit.
@@ -100,8 +101,10 @@ func (f FreedomForum) Poll(ctx context.Context, deps source.Deps, seen map[strin
 
 // fetchConditional issues a conditional GET. On 200 it returns the edition; on
 // 304/404/other it returns a nil edition and the status for the caller to act
-// on. etag is the token to send as If-None-Match (empty to skip).
-func fetchConditional(ctx context.Context, client *http.Client, url, etag string) (
+// on. etag is the token to send as If-None-Match (empty to skip). probeDay is
+// the folder date being probed, used as the edition-date fallback when the
+// response carries no usable Last-Modified.
+func fetchConditional(ctx context.Context, client *http.Client, url, etag string, probeDay time.Time) (
 	*source.Edition, string, int, error) {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -128,9 +131,22 @@ func fetchConditional(ctx context.Context, client *http.Client, url, etag string
 	if err != nil {
 		return nil, "", resp.StatusCode, fmt.Errorf("freedomforum: read body: %w", err)
 	}
+	// A 200 whose body isn't a PDF (empty, an HTML error page, a captive
+	// portal) must not become an edition — and must not burn the ETag, or the
+	// next poll 304s past the real file forever. Treat it as a probe error so
+	// the caller retains the old token and retries next cycle. Per the PDF
+	// spec's reader tolerance the header may sit anywhere in the first 1024
+	// bytes, so sniff that window rather than byte 0 only.
+	head := data
+	if len(head) > 1024 {
+		head = head[:1024]
+	}
+	if !bytes.Contains(head, []byte("%PDF")) {
+		return nil, "", resp.StatusCode, fmt.Errorf("freedomforum: %s returned %d bytes that are not a PDF", url, len(data))
+	}
 	newETag := resp.Header.Get("ETag")
 	ed := &source.Edition{
-		Date:    editionDate(resp.Header.Get("Last-Modified")),
+		Date:    editionDate(resp.Header.Get("Last-Modified"), probeDay),
 		Version: newETag,
 		Media:   source.MediaPDF,
 		Data:    data,
@@ -139,16 +155,17 @@ func fetchConditional(ctx context.Context, client *http.Client, url, etag string
 }
 
 // editionDate reads the edition date from Last-Modified. If it is missing or
-// unparseable we fall back to a zero time; the caller keys the archive by the
-// date's calendar day, and a zero date sorts oldest so a real edition always
-// wins — a conservative failure mode.
-func editionDate(lastModified string) time.Time {
+// unparseable we fall back to the probed folder's date: the URL's day-of-month
+// told us which day this edition is for, so the folder date is always a valid
+// (if less precise) edition date, and the archive never sees a zero date it
+// would reject.
+func editionDate(lastModified string, probeDay time.Time) time.Time {
 	if lastModified == "" {
-		return time.Time{}
+		return probeDay.UTC()
 	}
 	t, err := http.ParseTime(lastModified)
 	if err != nil {
-		return time.Time{}
+		return probeDay.UTC()
 	}
 	return t.UTC()
 }

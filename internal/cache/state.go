@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -45,6 +46,12 @@ type Store struct {
 }
 
 // Open loads (or initializes) state at the given file path.
+//
+// A file that exists but doesn't parse is NOT fatal: everything in it (health
+// timestamps and provider ETags) is cheaply re-derivable — the worst case is
+// one unconditional re-download per source and a health reset. The corrupt
+// file is set aside as <path>.corrupt and a fresh state is used, rather than
+// crash-looping the whole service over a recoverable file.
 func Open(path string) (*Store, error) {
 	s := &Store{path: path}
 	s.st = State{
@@ -59,7 +66,16 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("cache: read state: %w", err)
 	default:
 		if err := json.Unmarshal(data, &s.st); err != nil {
-			return nil, fmt.Errorf("cache: parse state: %w", err)
+			backup := path + ".corrupt"
+			if renameErr := os.Rename(path, backup); renameErr != nil {
+				backup = "(backup failed: " + renameErr.Error() + ")"
+			}
+			slog.Warn("state file is corrupt; starting fresh",
+				"path", path, "backup", backup, "err", err)
+			s.st = State{
+				Sources:  map[string]SourceRecord{},
+				Versions: map[string]map[string]string{},
+			}
 		}
 		if s.st.Sources == nil {
 			s.st.Sources = map[string]SourceRecord{}

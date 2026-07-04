@@ -40,3 +40,21 @@ func TestRenderUnsupportedMedia(t *testing.T) {
 		t.Error("expected error for unsupported media")
 	}
 }
+
+func TestRenderPDFDispatchesToRasterizer(t *testing.T) {
+	// End-to-end through the real fitz rasterizer against the checked-in
+	// fixture, so the MediaPDF branch is exercised, not just MediaImage.
+	dst := filepath.Join(t.TempDir(), "out.png")
+	err := New().Render(context.Background(),
+		"../rasterize/testdata/one-page.pdf", source.MediaPDF, dst, 120)
+	if err != nil {
+		t.Fatalf("Render(MediaPDF): %v", err)
+	}
+	out, err := imaging.Open(dst)
+	if err != nil {
+		t.Fatalf("open output: %v", err)
+	}
+	if got := out.Bounds().Dx(); got != 120 {
+		t.Errorf("output width = %d, want 120", got)
+	}
+}

@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/disintegration/imaging"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/kelchm/paperboy/internal/archive"
 	"github.com/kelchm/paperboy/internal/buildinfo"
@@ -63,6 +64,10 @@ const (
 	defaultPoll        = 30 * time.Minute
 	defaultArchiveDays = 14
 	defaultMarginPct   = 3.0
+
+	// renderTimeout bounds a cache-fill render. Renders run detached from the
+	// requesting context (see serve), so this is their only deadline.
+	renderTimeout = 2 * time.Minute
 )
 
 // Cursors tracks each device's position in the rotation. RenderCurrent advances
@@ -199,6 +204,10 @@ type Paperboy struct {
 	cacheDir   string
 	cursors    Cursors
 	now        func() time.Time
+
+	// renderSF collapses concurrent cold-cache renders of the same PNG into a
+	// single rasterization — each in-flight render can hold hundreds of MB.
+	renderSF singleflight.Group
 }
 
 // New constructs a Paperboy with the given config.
@@ -250,6 +259,7 @@ func New(cfg Config) (*Paperboy, error) {
 		Retention: time.Duration(cfg.ArchiveDays) * 24 * time.Hour,
 		Interval:  cfg.PollInterval,
 		Logger:    cfg.Logger,
+		CacheDir:  cacheDir,
 	}
 
 	return &Paperboy{
@@ -325,11 +335,40 @@ func (p *Paperboy) RenderFor(ctx context.Context, sourceID string, opts ...Rende
 
 func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, opts RenderOptions) (*Result, error) {
 	master := WidthMaster(p.cfg)
-	pngPath := filepath.Join(p.cacheDir, entry.SourceID, entry.Date.UTC().Format("20060102")+".png")
+	// The cache key carries the master width so a PAPERBOY_WIDTH change never
+	// serves old-width masters; freshness against the archived artifact handles
+	// re-posted (corrected) editions.
+	pngPath := filepath.Join(p.cacheDir, entry.SourceID,
+		fmt.Sprintf("%s.w%d.png", entry.Date.UTC().Format("20060102"), master))
 
-	// Render lazily into the disposable cache on first view.
-	if !fileNonEmpty(pngPath) {
-		if err := p.renderer.Render(ctx, entry.Path, entry.Media, pngPath, master); err != nil {
+	// Render lazily into the disposable cache on first view; re-render when the
+	// archive has a newer artifact. singleflight collapses concurrent cold-cache
+	// requests for the same PNG into one rasterization.
+	if !renderCacheFresh(pngPath, entry.Path) {
+		if _, err, _ := p.renderSF.Do(pngPath, func() (any, error) {
+			if renderCacheFresh(pngPath, entry.Path) {
+				return nil, nil // a concurrent caller already rendered it
+			}
+			// Stat the artifact BEFORE rendering and stamp its mtime onto the
+			// finished PNG: if the reconciler overwrites the artifact while
+			// this render is in flight, the PNG (stamped with the old mtime)
+			// stays older than the new artifact and re-renders next request —
+			// otherwise the finished PNG's own mtime would mask the update.
+			srcInfo, statErr := os.Stat(entry.Path)
+			// Render detached from the requesting context: the flight's result
+			// is shared by every concurrent waiter (and by the cache), so the
+			// winner disconnecting must not cancel the render out from under
+			// the rest. renderTimeout is the render's own bound.
+			rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), renderTimeout)
+			defer cancel()
+			if err := p.renderer.Render(rctx, entry.Path, entry.Media, pngPath, master); err != nil {
+				return nil, err
+			}
+			if statErr == nil {
+				_ = os.Chtimes(pngPath, srcInfo.ModTime(), srcInfo.ModTime())
+			}
+			return nil, nil
+		}); err != nil {
 			return nil, fmt.Errorf("paperboy: render: %w", err)
 		}
 	}
@@ -469,7 +508,20 @@ func WidthMaster(c Config) int {
 	return c.Width
 }
 
-func fileNonEmpty(path string) bool {
-	fi, err := os.Stat(path)
-	return err == nil && fi.Size() > 0
+// renderCacheFresh reports whether the cached PNG exists, is non-empty, and is
+// at least as new as the archived artifact it was rendered from. An archive
+// overwrite (a re-posted, corrected edition) makes the artifact newer than the
+// PNG and so invalidates it.
+func renderCacheFresh(pngPath, srcPath string) bool {
+	png, err := os.Stat(pngPath)
+	if err != nil || png.Size() == 0 {
+		return false
+	}
+	src, err := os.Stat(srcPath)
+	if err != nil {
+		// Artifact unreadable (e.g. pruned between listing and here): a
+		// re-render would fail anyway, so keep serving the cached PNG.
+		return true
+	}
+	return !png.ModTime().Before(src.ModTime())
 }
