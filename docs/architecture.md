@@ -14,9 +14,10 @@ Everything else hangs off one decision — fetching and serving are separate. An
 HTTP request never triggers a fetch. The reconciler fills the archive; the
 handlers just read local disk.
 
-That's what keeps the server fast (no fetch or render in the request path), keeps
-upstream flakiness out of the request path entirely, and gets rid of the "GET
-advances the rotation" weirdness the first cut had.
+That's what keeps the server fast (no fetch or render in the request path) and
+keeps upstream flakiness out of the request path entirely. (Rotation does advance
+per device on each load — see [rotation](#rotation) — but that's a small,
+per-device cursor, not the global GET-mutation the first cut had.)
 
 ```
                  ┌─────────────────┐        ┌──────────────┐
@@ -216,8 +217,9 @@ Every handler is a pure read over the local archive/cache. None of them fetch.
 
 | Endpoint | Behavior |
 |---|---|
-| `GET /current.png` | The current rotation slot (time-based; see below). A safe read — no mutation. |
-| `GET /paper/{id}.png` | Newest archived edition for a specific source. |
+| `GET /` | Display page — fills the viewport and frames the current paper in CSS. For HTML-rendering displays. |
+| `GET /current.png` | Current paper for the requesting device; advances that device's cursor (see [rotation](#rotation)). |
+| `GET /paper/{id}.png` | Newest archived edition for a specific source (does not advance). |
 | `GET /sources` | JSON: the configured sources and their health. |
 | `GET /health` | Liveness — 200 whenever the process is up. |
 | `GET /healthz` | Readiness — 200 once at least one usable edition is archived. |
@@ -225,10 +227,11 @@ Every handler is a pure read over the local archive/cache. None of them fetch.
 `GET /paper/{id}/{date}.png` (a specific archived edition) is an obvious future
 addition now that there's a real archive, but it isn't there yet.
 
-Image endpoints take `?w=<int>` and set `X-Paperboy-Source`, `X-Paperboy-Width`,
-`X-Paperboy-Height`, and `X-Paperboy-Days-Old`. If the served edition is a
-cross-source fallback because the slot's source had nothing, `X-Paperboy-Stale:
-true` is set too.
+The image endpoints take framing params — `?w=` / `?h=` (target size),
+`?fit=contain|cover`, `?margin=<pct>` — and `/current.png` also takes
+`?sources=<ids>` and `?device=<id>`. Every response sets `X-Paperboy-Source`,
+`-Width`, `-Height`, and `-Days-Old`, plus `X-Paperboy-Stale: true` on a
+cross-source fallback.
 
 `X-Paperboy-Days-Old` is `floor(now − edition date)` in whole days — elapsed time
 since the edition, which sidesteps the timezone off-by-one you'd get comparing
@@ -237,40 +240,60 @@ against a wall-clock "today."
 ### Serving flow
 
 ```
-GET /current.png
-  slot   := (now.Unix() / rotateIntervalSeconds) mod len(sources)
-  source := sources[slot]
+GET /current.png   (from device D)
+  source  := sources[ cursor.Next(D, len(sources)) ]   # advances D's cursor
   edition := newest archived edition for source
      ↓ (source has nothing archived yet)
      newest archived edition across ANY source, with X-Paperboy-Stale: true
      ↓ (archive is completely empty — cold start only)
      503
-  render / resize -> PNG -> respond
+  frame -> PNG -> respond
 ```
 
 ### Rotation
 
-Rotation is a deterministic function of the clock, not a stored index that gets
-mutated:
+Rotation is per device, and advances on every load — the device's own refresh
+cadence sets the pace, so there's no server-side rotate clock. Each
+`GET /current.png` from a device serves that device's current paper and bumps its
+cursor to the next:
 
 ```
-slot = (now.Unix() / PAPERBOY_ROTATE_INTERVAL_seconds) mod len(sources)
+source = sources[ cursor.Next(device, len(sources)) ]
 ```
 
-So `GET /current.png` is a safe, idempotent read; every client shows the same
-paper at the same time; there's no rotation index to persist, no GET-time
-mutation, and no race on advancing it. The library method is `RenderCurrent` (the
-old advancing `RenderNext` is gone). If you want to walk every paper, use
-`ListSources` + `RenderFor` — which is explicit about what it's doing.
+A device is a string key, resolved by one small function: an explicit `?device=`
+wins (stable, user-chosen), otherwise the connecting IP (`r.RemoteAddr`) — zero
+config on a LAN, where that's the device. The key is scheme-prefixed
+(`name:kitchen`, `ip:10.0.0.5`) so strategies can't collide and more (cookie,
+header, token) can drop in later without touching callers.
 
-### Sizing
+The cursor sits behind a one-method interface (`Cursors.Next`), in-memory by
+default (resets on restart — harmless). If devices become first-class,
+configurable things, swap in a persistent implementation (e.g. SQLite) and
+nothing else changes.
 
-The client controls output size, not the server. `PAPERBOY_WIDTH` is the master
-width paperboy renders and caches at (the quality ceiling). Per-request `?w=`
-resizes down from the master, preserving aspect ratio; asking for more than the
-master just gets you the master (no upscaling). That's what lets one instance
-feed a 13" Visionect, a TRMNL, a Home Assistant card, and a browser tab off a
-single cached render.
+This is the *per-device* version of the "advance on GET" the first cut had and we
+removed: the sin was a single *global* index that any request perturbed and that
+desynced every display. Keyed per device, only that device's own fetches move its
+cursor; `/paper/{id}` and everything else stay pure reads. The library method is
+`RenderCurrent` (advances the given `Device`); `ListSources` + `RenderFor` walks
+papers explicitly without advancing anything.
+
+### Sizing and framing
+
+The client controls size and framing; the server only decides which image. Two
+paths, by device type:
+
+- HTML displays hit `GET /` — the page fills the viewport and frames the front
+  page in CSS (`object-fit: contain`, white background, a padding margin). No
+  per-device config; the browser already knows its own size.
+- Raw-image devices hit `/current.png?w=&h=&fit=&margin=` — the server frames to
+  exactly that canvas (contain or cover, with a margin), for panels that can't do
+  CSS.
+
+`PAPERBOY_WIDTH` is the master width we render and cache at (the quality ceiling);
+everything downscales from it, never up. One master render feeds a 13" Visionect,
+a TRMNL, a Home Assistant card, and a browser tab.
 
 ## Configuration
 
@@ -280,7 +303,6 @@ single cached render.
 | `PAPERBOY_DATA_DIR` | `./data` | Root for `archive/`, `cache/`, `state.json` |
 | `PAPERBOY_WIDTH` | `1600` | Master render width (quality ceiling) |
 | `PAPERBOY_POLL_INTERVAL` | `30m` | Reconciler cadence |
-| `PAPERBOY_ROTATE_INTERVAL` | `1h` | Rotation slot duration for `/current.png` |
 | `PAPERBOY_ARCHIVE_DAYS` | `14` | PDF archive retention |
 | `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
@@ -304,8 +326,9 @@ A few decisions worth writing down so we don't re-litigate them:
   and fills in over time. That's the main reason to fetch eagerly in the
   background — a lazy, request-driven design can never build history.
 - PNGs are cache, not state. See [storage layout](#storage-layout).
-- Time-based rotation. Kills GET-time mutation, keeps multiple displays in sync,
-  and deletes the stored rotation index and its race.
+- Per-device advance-on-load rotation. A device's own refresh cadence drives it;
+  the cursor is per device (keyed by ?device= or IP), so there's no global index
+  to desync and non-device requests stay pure reads.
 - Both health endpoints stay. paperboy should run under compose *or* k8s, and the
   liveness/readiness split costs compose nothing while being load-bearing under an
   orchestrator.

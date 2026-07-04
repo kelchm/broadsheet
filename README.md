@@ -65,14 +65,14 @@ for each source:
 ### Serving a request (no network)
 
 ```
-GET /current.png
-  slot    = (now / PAPERBOY_ROTATE_INTERVAL) mod number-of-sources
+GET /current.png   (from device D)
+  source  = sources[ cursor(D)++ ]        # per-device, advances each load
   edition = newest archived edition for that source
        |  (nothing archived for it yet)
        -> newest edition from any source, with X-Paperboy-Stale: true
        |  (archive is completely empty — cold start only)
        -> 503
-  render, resize, done
+  render, frame, done
 ```
 
 Once the archive has anything in it you shouldn't see a "Not Found". That was the point of the rewrite.
@@ -81,13 +81,23 @@ Once the archive has anything in it you shouldn't see a "Not Found". That was th
 
 | Endpoint | What it does |
 |---|---|
-| `GET /current.png` | The current rotation slot. It's time-based, so hitting it repeatedly is a safe read — it doesn't advance. |
-| `GET /paper/{id}.png` | The newest archived edition for one source. |
+| `GET /` | The display page — fills the viewport and frames the current paper in CSS. Point an HTML-rendering display (Visionect, a browser, …) here. |
+| `GET /current.png` | The current paper for the requesting device, and **advances to the next on each load** (per device — see [Displays](#displays)). |
+| `GET /paper/{id}.png` | The newest archived edition for one source (doesn't advance). |
 | `GET /sources` | JSON: the configured sources and their health. |
 | `GET /health` | Liveness — 200 as long as the process is up. |
 | `GET /healthz` | Readiness — 200 once there's at least one edition archived. |
 
-Image endpoints take `?w=<int>` for the output width (see [Sizing](#sizing)). Every response carries `X-Paperboy-Source`, `-Width`, `-Height`, and `-Days-Old`, plus `X-Paperboy-Stale: true` if the slot's source had nothing and you got a fallback from another one.
+The image endpoints take framing params: `?w=` / `?h=` (target size), `?fit=contain\|cover`, `?margin=<pct>`. `/current.png` also takes `?sources=<ids>` (rotate a subset) and `?device=<id>` (rotation identity; defaults to client IP). Every response carries `X-Paperboy-Source`, `-Width`, `-Height`, `-Days-Old`, plus `X-Paperboy-Stale: true` if you got a cross-source fallback.
+
+## Displays
+
+Two ways to drive a screen, depending on what the device can render:
+
+- **It renders HTML** (Visionect is literally an HTML rendering engine; also browsers, dashboards) → point it at `GET /`. The page fills the viewport and frames the front page in CSS (`object-fit`, white background, a margin), so it fits *any* screen with no per-device setup. Tune with `?fit=cover` or `?margin=<n>`.
+- **It pulls a raw image** (fixed-resolution panels, Home Assistant, …) → point it at `/current.png?w=<W>&h=<H>`. The server frames it to exactly that size (`fit`/`margin` too). This is the path for devices that can't do CSS.
+
+**Rotation is per device, and advances on every load.** The device's own refresh cadence sets the pace — a Visionect that refreshes every 30 min just shows the next paper each time. A device is identified by `?device=<id>` (stable, your choice) or, with nothing set, its client IP (zero config on a LAN). Different devices rotate independently; hitting `/paper/{id}` never advances anything.
 
 ## Sizing
 
@@ -129,7 +139,6 @@ Everything's an env var:
 | `PAPERBOY_DATA_DIR` | `./data` | Holds `archive/` (PDFs), `cache/` (PNGs), and `state.json` |
 | `PAPERBOY_WIDTH` | `1600` | Master width — what we cache at. `?w=` resizes down from here. |
 | `PAPERBOY_POLL_INTERVAL` | `30m` | How often the background loop checks upstream |
-| `PAPERBOY_ROTATE_INTERVAL` | `1h` | How long each source stays the `/current.png` slot |
 | `PAPERBOY_ARCHIVE_DAYS` | `14` | How many days of editions to keep |
 | `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
