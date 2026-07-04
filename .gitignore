@@ -27,3 +27,6 @@ vendor/
 
 # devcontainer-built deps
 .devcontainer/.cache/
+
+# scratch — local research notes / reports, never committed
+/scratch/
