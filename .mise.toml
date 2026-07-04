@@ -4,6 +4,5 @@ go = "1.26.4"
 # Anyone with mise installed gets the right Go version automatically
 # by cd-ing into this directory. See https://mise.jdx.dev for install.
 #
-# C library deps (OpenCV, MuPDF, Tesseract) are not version-managed here;
-# install via Homebrew on macOS, apt on Debian/Ubuntu, or use the devcontainer.
-# See README.md for full instructions.
+# No system libraries needed beyond a C toolchain: go-fitz links the bundled
+# MuPDF. See README.md.

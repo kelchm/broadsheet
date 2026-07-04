@@ -1,0 +1,13 @@
+# Keep the docker build context to source + module files. Without this,
+# `COPY . .` ingests the local data archive (grows daily, busts layer cache),
+# built binaries, git history, and local research notes.
+.git
+data/
+bin/
+scratch/
+eval/
+docs/
+.devcontainer/
+.github/
+.vscode/
+*.md

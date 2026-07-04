@@ -4,7 +4,10 @@
 # Mirrors docker/Dockerfile's builder stage; intentionally NOT multi-stage —
 # we want the full toolchain available for iteration.
 
-FROM golang:1.26-bookworm
+# trixie (not bookworm), matching docker/Dockerfile: go-fitz's prebuilt arm64
+# MuPDF lib needs glibc >= 2.38, and this container builds linux/arm64 on
+# Apple Silicon hosts.
+FROM golang:1.26-trixie
 
 ARG DEBIAN_FRONTEND=noninteractive
 
