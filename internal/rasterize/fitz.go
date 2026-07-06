@@ -127,7 +127,9 @@ func toGray(src *image.RGBA) *image.Gray {
 		di := dst.PixOffset(b.Min.X, y)
 		for x := b.Min.X; x < b.Max.X; x++ {
 			r, g, bl := src.Pix[si], src.Pix[si+1], src.Pix[si+2]
-			dst.Pix[di] = uint8((299*int(r) + 587*int(g) + 114*int(bl)) / 1000)
+			// (299+587+114)*255/1000 = 255: the weighted sum of three bytes
+			// cannot exceed a byte.
+			dst.Pix[di] = uint8((299*int(r) + 587*int(g) + 114*int(bl)) / 1000) //nolint:gosec // G115: bounded by construction, see above
 			si += 4
 			di++
 		}
