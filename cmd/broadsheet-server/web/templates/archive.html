@@ -1,0 +1,29 @@
+{{define "page_archive"}}{{template "top" .}}
+<h1>Archive</h1>
+<p class="muted">Everything the reconciler holds, per paper and day — including papers since disabled. Click a page to view it full size.</p>
+{{if .Rows}}
+<div class="archive-scroll">
+<table class="archive">
+  <thead><tr><th>Paper</th>{{range .Columns}}<th>{{.Label}}</th>{{end}}</tr></thead>
+  <tbody>
+  {{range .Rows}}
+    <tr>
+      <td><strong>{{.Name}}</strong><br><small class="muted">{{.ID}}</small></td>
+      {{range .Cells}}
+      <td class="cell">
+        {{- if .Has -}}
+        <a href="/paper/{{.ID}}/{{.Date}}.png" target="_blank" title="{{.Date}}"><img loading="lazy" src="/paper/{{.ID}}/{{.Date}}.png?w=64" alt="{{.Date}}"></a>
+        {{- else -}}
+        <span class="gap" title="no edition archived">·</span>
+        {{- end -}}
+      </td>
+      {{end}}
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="muted">Nothing archived yet — the reconciler fills this in as papers publish.</p>
+{{end}}
+{{template "bottom" .}}{{end}}

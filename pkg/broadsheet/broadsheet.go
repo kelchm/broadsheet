@@ -397,6 +397,27 @@ func (p *Engine) Catalog() ([]CatalogEntry, error) {
 	return out, nil
 }
 
+// ArchiveIndex returns edition dates (oldest first, same-day duplicates
+// collapsed) for every source holding at least one archived edition —
+// including disabled papers, whose history remains browsable.
+func (p *Engine) ArchiveIndex() map[string][]time.Time {
+	out := map[string][]time.Time{}
+	for _, id := range p.archive.SourceIDs() {
+		var dates []time.Time
+		var last time.Time
+		for _, entry := range p.archive.List(id) {
+			if !entry.Date.Equal(last) {
+				dates = append(dates, entry.Date)
+				last = entry.Date
+			}
+		}
+		if len(dates) > 0 {
+			out[id] = dates
+		}
+	}
+	return out
+}
+
 // ListEditions returns the archived edition dates for a source, oldest first.
 // Disabled catalog papers remain addressable — their history outlives the
 // toggle. Same-day duplicates (media-type changes on re-post) are collapsed.

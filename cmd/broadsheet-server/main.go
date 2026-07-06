@@ -144,6 +144,7 @@ func newRouter(p *broadsheet.Engine, logger *slog.Logger, adminToken string) htt
 		ui.Get("/", handleUIStatus(p))
 		ui.Get("/papers", handleUIPapers(p))
 		ui.Get("/builder", handleUIBuilder(p))
+		ui.Get("/archive", handleUIArchive(p))
 		ui.Get("/fragments/health", handleUIHealthFragment(p))
 		ui.Group(func(mut chi.Router) {
 			mut.Use(uiAuth(adminToken))

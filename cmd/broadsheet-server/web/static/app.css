@@ -33,3 +33,7 @@ label.inline { display: inline-block; margin-right: 1rem; }
 .preview { max-width: 420px; border: 1px solid #ddd; background: #fff; }
 [hidden] { display: none !important; }
 #flash { position: sticky; top: 0; background: #a12622; color: #fff; padding: .5rem 1.2rem; font-size: .9rem; z-index: 10; }
+.archive-scroll { overflow-x: auto; }
+.archive .cell { text-align: center; }
+.archive .cell img { height: 52px; border: 1px solid #ddd; background: #fff; }
+.archive .gap { color: #ccc; }

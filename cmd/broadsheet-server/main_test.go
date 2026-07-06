@@ -795,3 +795,19 @@ func TestUI_TokenGateWithCookieFlow(t *testing.T) {
 		t.Errorf("toggle with cookie = %d, want 200", resp2.StatusCode)
 	}
 }
+
+func TestUI_ArchivePage(t *testing.T) {
+	srv := newStoreBackedServer(t, "") // ny-nyt has a 20260630 edition archived
+	resp := get(t, srv.URL+"/admin/archive")
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/admin/archive = %d, want 200", resp.StatusCode)
+	}
+	html := string(body)
+	if !strings.Contains(html, "/paper/ny-nyt/20260630.png") {
+		t.Error("archive grid missing the seeded ny-nyt edition cell")
+	}
+	if !strings.Contains(html, "Jun 30") {
+		t.Error("archive grid missing the date column header")
+	}
+}

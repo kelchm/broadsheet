@@ -16,6 +16,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -330,5 +331,84 @@ func handleUIRefresh(p *broadsheet.Engine) http.HandlerFunc {
 			return
 		}
 		renderRow(w, p, id)
+	}
+}
+
+// archiveCell is one (paper, day) cell in the archive grid.
+type archiveCell struct {
+	ID   string
+	Date string
+	Has  bool
+}
+
+type archiveRow struct {
+	ID, Name string
+	Cells    []archiveCell
+}
+
+type archiveColumn struct {
+	Label string
+}
+
+// handleUIArchive renders the sources x days grid over everything archived.
+// Gaps are visible on purpose — "no edition that day" is information (holiday
+// skips, fetch failures) the health page can't show historically.
+func handleUIArchive(p *broadsheet.Engine) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		idx := p.ArchiveIndex()
+
+		// Columns: the union of archived dates, newest first, capped to keep
+		// the grid readable (retention bounds it anyway).
+		const maxColumns = 21
+		seen := map[string]bool{}
+		var dates []string
+		for _, ds := range idx {
+			for _, d := range ds {
+				k := d.UTC().Format("20060102")
+				if !seen[k] {
+					seen[k] = true
+					dates = append(dates, k)
+				}
+			}
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(dates)))
+		if len(dates) > maxColumns {
+			dates = dates[:maxColumns]
+		}
+
+		names := map[string]string{}
+		if cat, err := p.Catalog(); err == nil {
+			for _, c := range cat {
+				names[c.ID] = c.Name
+			}
+		}
+
+		rows := make([]archiveRow, 0, len(idx))
+		for id, ds := range idx {
+			have := map[string]bool{}
+			for _, d := range ds {
+				have[d.UTC().Format("20060102")] = true
+			}
+			name := names[id]
+			if name == "" {
+				name = id
+			}
+			row := archiveRow{ID: id, Name: name}
+			for _, col := range dates {
+				row.Cells = append(row.Cells, archiveCell{ID: id, Date: col, Has: have[col]})
+			}
+			rows = append(rows, row)
+		}
+		sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+
+		cols := make([]archiveColumn, 0, len(dates))
+		for _, d := range dates {
+			if t, err := time.Parse("20060102", d); err == nil {
+				cols = append(cols, archiveColumn{Label: t.Format("Jan 2")})
+			} else {
+				cols = append(cols, archiveColumn{Label: d})
+			}
+		}
+		renderUI(w, "page_archive", map[string]any{"Rows": rows, "Columns": cols})
 	}
 }

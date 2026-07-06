@@ -81,6 +81,22 @@ func (s *Store) Has(sourceID string, date time.Time) bool {
 	return false
 }
 
+// SourceIDs returns every source directory present in the archive, sorted.
+func (s *Store) SourceIDs() []string {
+	dirs, err := os.ReadDir(s.Root)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, d := range dirs {
+		if d.IsDir() {
+			out = append(out, d.Name())
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // List returns a source's archived editions, oldest first.
 func (s *Store) List(sourceID string) []Entry {
 	return s.list(sourceID)
