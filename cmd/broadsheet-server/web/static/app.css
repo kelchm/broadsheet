@@ -1,0 +1,35 @@
+:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1a1a1a; }
+body { margin: 0; background: #fafaf8; }
+nav { display: flex; gap: 1.2rem; align-items: baseline; padding: .8rem 1.2rem; background: #1a1a1a; }
+nav .brand { color: #fff; font-weight: 700; letter-spacing: .02em; }
+nav a { color: #bbb; text-decoration: none; }
+nav a:hover { color: #fff; }
+main { max-width: 60rem; margin: 0 auto; padding: 1rem 1.2rem 4rem; }
+h1 { font-size: 1.4rem; } h2 { font-size: 1.1rem; margin-top: 2rem; }
+.muted { color: #777; }
+.cards { display: flex; gap: 1rem; flex-wrap: wrap; }
+.card { background: #fff; border: 1px solid #e2e2dd; border-radius: 6px; padding: .8rem 1.1rem; min-width: 9rem; }
+.card .label { display: block; font-size: .75rem; text-transform: uppercase; color: #999; }
+.card strong { font-size: 1.2rem; } .card small { display: block; color: #999; }
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e2dd; border-radius: 6px; }
+th { text-align: left; font-size: .75rem; text-transform: uppercase; color: #999; padding: .5rem .7rem; }
+td { padding: .45rem .7rem; border-top: 1px solid #efefea; vertical-align: middle; }
+tr.enabled { background: #fcfcf7; }
+.thumb img { height: 44px; border: 1px solid #ddd; background: #fff; }
+.badge { font-size: .75rem; padding: .15rem .5rem; border-radius: 99px; white-space: nowrap; }
+.badge.ok { background: #e5f3e5; color: #256029; }
+.badge.err { background: #fdecea; color: #a12622; }
+.badge.wait { background: #fdf6e3; color: #8a6d1a; }
+.actions { text-align: right; white-space: nowrap; }
+button { font: inherit; font-size: .85rem; padding: .25rem .7rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+button:hover { border-color: #888; }
+input, select { font: inherit; padding: .3rem .5rem; border: 1px solid #ccc; border-radius: 4px; }
+#filter { width: 100%; margin: .8rem 0; box-sizing: border-box; }
+#out { width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: .85rem; }
+.builder form { display: flex; flex-direction: column; gap: .7rem; }
+.builder fieldset { border: 1px solid #e2e2dd; border-radius: 6px; max-height: 12rem; overflow-y: auto; }
+label.inline { display: inline-block; margin-right: 1rem; }
+.hints { background: #f4f4ee; border-left: 3px solid #bbb; padding: .6rem .9rem; font-size: .9rem; }
+.preview { max-width: 420px; border: 1px solid #ddd; background: #fff; }
+[hidden] { display: none !important; }
+#flash { position: sticky; top: 0; background: #a12622; color: #fff; padding: .5rem 1.2rem; font-size: .9rem; z-index: 10; }

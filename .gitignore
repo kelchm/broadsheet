@@ -30,3 +30,7 @@ vendor/
 
 # scratch — local research notes / reports, never committed
 /scratch/
+
+# root-level binaries from `go build ./cmd/...`
+/broadsheet
+/broadsheet-server

@@ -1,0 +1,38 @@
+{{define "top"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>broadsheet</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+<div id="flash" hidden></div>
+<script>
+document.addEventListener('htmx:responseError', function (e) {
+  var f = document.getElementById('flash');
+  f.textContent = 'Action failed (' + e.detail.xhr.status + '): ' + e.detail.xhr.responseText;
+  f.hidden = false;
+  setTimeout(function () { f.hidden = true; }, 8000);
+});
+document.addEventListener('htmx:sendError', function () {
+  var f = document.getElementById('flash');
+  f.textContent = 'Server unreachable.';
+  f.hidden = false;
+});
+</script>
+<nav>
+  <span class="brand">broadsheet</span>
+  <a href="/admin">Status</a>
+  <a href="/admin/papers">Papers</a>
+  <a href="/admin/builder">URL builder</a>
+</nav>
+<main>
+{{end}}
+
+{{define "bottom"}}
+</main>
+</body>
+</html>
+{{end}}

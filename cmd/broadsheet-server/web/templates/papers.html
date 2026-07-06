@@ -1,0 +1,44 @@
+{{define "page_papers"}}{{template "top" .}}
+<h1>Papers</h1>
+<p class="muted">{{.Enabled}} enabled of {{.Total}}. Toggling applies immediately — rotation next request, polling next cycle.</p>
+<input id="filter" type="search" placeholder="Filter by name, place, or id…" autocomplete="off">
+<table id="papers">
+  <thead><tr><th></th><th>Paper</th><th>Health</th><th></th></tr></thead>
+  <tbody>
+  {{range .Rows}}{{template "paper_row" .}}{{end}}
+  </tbody>
+</table>
+<script>
+(function () {
+  var input = document.getElementById('filter');
+  function apply() {
+    var q = input.value.toLowerCase();
+    // Query live each time: htmx swaps replace <tr> elements, and a NodeList
+    // captured at load would silently stop covering swapped rows.
+    document.querySelectorAll('#papers tbody tr').forEach(function (r) {
+      r.hidden = q !== '' && r.getAttribute('data-search').indexOf(q) === -1;
+    });
+  }
+  input.addEventListener('input', apply);
+  document.body.addEventListener('htmx:afterSwap', apply);
+})();
+</script>
+{{template "bottom" .}}{{end}}
+
+{{define "paper_row"}}
+<tr id="row-{{.ID}}" data-search="{{.Search}}"{{if .Enabled}} class="enabled"{{end}}>
+  <td class="thumb">{{if .Enabled}}<img loading="lazy" src="/paper/{{.ID}}.png?w=72" alt="" onerror="this.hidden=true">{{end}}</td>
+  <td><strong>{{.Name}}</strong><br><small class="muted">{{.Location}} · {{.ID}}</small></td>
+  <td>
+    {{- if .Enabled}}
+      {{- if .Err}}<span class="badge err" title="{{.ErrDetail}}">{{.Err}}</span>
+      {{- else if .LastEdition}}<span class="badge ok">edition {{.LastEdition}}</span>
+      {{- else}}<span class="badge wait">waiting for first fetch</span>{{end}}
+    {{- else}}<span class="muted">—</span>{{end -}}
+  </td>
+  <td class="actions">
+    {{if .Enabled}}<button hx-post="/admin/papers/{{.ID}}/refresh" hx-target="#row-{{.ID}}" hx-swap="outerHTML" hx-disabled-elt="this" title="Poll upstream now (can take a while)">refresh</button>{{end}}
+    <button hx-post="/admin/papers/{{.ID}}/toggle?to={{if .Enabled}}false{{else}}true{{end}}" hx-target="#row-{{.ID}}" hx-swap="outerHTML" hx-disabled-elt="this">{{if .Enabled}}disable{{else}}enable{{end}}</button>
+  </td>
+</tr>
+{{end}}

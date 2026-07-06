@@ -240,6 +240,7 @@ upstream on demand.
 | `GET /health` | Liveness — 200 whenever the process is up. |
 | `GET /healthz` | Readiness — 200 once at least one usable edition is archived. |
 | `GET /paper/{id}/{date}.png` | A specific archived edition (`YYYYMMDD`). |
+| `GET /admin` | Admin UI: server-rendered pages + htmx fragments over the same engine. Status (auto-refreshing health), Papers (catalog with live toggle/refresh), URL builder. Mutations take the bearer token or the SameSite=Strict cookie planted by `?token=`. |
 | `/api/v1/…` | Management plane (JSON): status, catalog with enabled flags + health, enable/disable (applies live — the engine reloads its source set), on-demand refresh, edition listing. Mutations honor `BROADSHEET_ADMIN_TOKEN`. |
 | `GET /`, `GET /current.png` | **Deprecated.** The old advance-on-GET rotation (per-device cursor, `?device=`). Kept for existing deployments; will be removed before 1.0. |
 
@@ -388,6 +389,8 @@ internal/
   catalog/           embedded catalog.json: the browsable list of known papers
   cache/             legacy state.json reader (one-time import only)
   buildinfo/         version string + User-Agent
+cmd/broadsheet-server/web/  the admin UI: html/template pages + htmx 2.0.9,
+                     embedded via go:embed — no Node, no bundler
 pkg/broadsheet/        the engine: wires it all together; RenderCurrent / RenderFor /
                      StartReconciler
 ```

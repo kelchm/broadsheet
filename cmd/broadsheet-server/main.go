@@ -136,6 +136,23 @@ func newRouter(p *broadsheet.Engine, logger *slog.Logger, adminToken string) htt
 	r.Get("/rotation.png", handleRotationPNG(p))
 	r.Get("/api/display", handleTRMNLDisplay(p))
 
+	// The admin UI (see ui.go): server-rendered pages + htmx fragments. Pages
+	// are open reads; mutations accept the bearer token or the cookie planted
+	// by visiting any page with ?token=.
+	r.Route("/admin", func(ui chi.Router) {
+		ui.Use(plantAdminCookie(adminToken))
+		ui.Get("/", handleUIStatus(p))
+		ui.Get("/papers", handleUIPapers(p))
+		ui.Get("/builder", handleUIBuilder(p))
+		ui.Get("/fragments/health", handleUIHealthFragment(p))
+		ui.Group(func(mut chi.Router) {
+			mut.Use(uiAuth(adminToken))
+			mut.Post("/papers/{id}/toggle", handleUIToggle(p))
+			mut.Post("/papers/{id}/refresh", handleUIRefresh(p))
+		})
+	})
+	r.Handle("/static/*", http.StripPrefix("/static/", staticHandler()))
+
 	// The management plane (see api.go): what the admin UI talks to. Reads are
 	// open; mutations honor BROADSHEET_ADMIN_TOKEN when configured.
 	r.Route("/api/v1", func(api chi.Router) {
@@ -405,18 +422,18 @@ func deviceID(r *http.Request) string {
 	return "ip:" + host
 }
 
-// writeImageBody sets the X-Engine-* metadata headers and writes the PNG.
+// writeImageBody sets the X-Broadsheet-* metadata headers and writes the PNG.
 // Caching headers (Cache-Control, ETag) are the caller's business — they
 // differ per endpoint semantics.
 func writeImageBody(w http.ResponseWriter, res *broadsheet.Result) {
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Content-Length", strconv.Itoa(len(res.Image)))
-	w.Header().Set("X-Engine-Source", res.SourceID)
-	w.Header().Set("X-Engine-Days-Old", fmt.Sprintf("%d", res.DaysOld))
-	w.Header().Set("X-Engine-Width", fmt.Sprintf("%d", res.Width))
-	w.Header().Set("X-Engine-Height", fmt.Sprintf("%d", res.Height))
+	w.Header().Set("X-Broadsheet-Source", res.SourceID)
+	w.Header().Set("X-Broadsheet-Days-Old", fmt.Sprintf("%d", res.DaysOld))
+	w.Header().Set("X-Broadsheet-Width", fmt.Sprintf("%d", res.Width))
+	w.Header().Set("X-Broadsheet-Height", fmt.Sprintf("%d", res.Height))
 	if res.Stale {
-		w.Header().Set("X-Engine-Stale", "true")
+		w.Header().Set("X-Broadsheet-Stale", "true")
 	}
 	_, _ = w.Write(res.Image) //nolint:gosec // G705: res.Image is server-rendered PNG bytes served as image/png, not user-controlled markup
 }

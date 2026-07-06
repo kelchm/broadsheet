@@ -1,0 +1,85 @@
+{{define "page_builder"}}{{template "top" .}}
+<h1>URL builder</h1>
+<p class="muted">All display configuration lives in the URL you provision on the device — nothing to manage server-side.</p>
+<div class="builder">
+<form id="bform" onsubmit="return false">
+  <label>Target
+    <select id="target">
+      <option value="visionect">Visionect / HTML display</option>
+      <option value="png">Raw image puller (panel, Home Assistant)</option>
+      <option value="trmnl">TRMNL / BYOS</option>
+    </select>
+  </label>
+  <fieldset><legend>Papers (empty = all enabled)</legend>
+    {{range .Enabled}}<label class="inline"><input type="checkbox" name="src" value="{{.ID}}"> {{.Name}}</label>{{end}}
+  </fieldset>
+  <label>Dwell per paper <input id="interval" value="30m" size="6"></label>
+  <label>Phase <input id="phase" type="number" value="0" size="4"></label>
+  <span id="pngopts">
+    <label>Width <input id="w" type="number" placeholder="800" size="6"></label>
+    <label>Height <input id="h" type="number" placeholder="480" size="6"></label>
+    <label>Fit <select id="fit"><option value="">contain</option><option value="cover">cover</option></select></label>
+  </span>
+  <label id="sleepopt">Panel sleep <select id="sleep"><option value="">auto (Visionect)</option><option value="off">off</option></select></label>
+</form>
+<p><input id="out" readonly onclick="this.select()"> <button id="copy">copy</button></p>
+<div id="hints" class="hints"></div>
+<h2>Preview</h2>
+<img id="preview" class="preview" alt="preview">
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var base = location.origin;
+  function params(forPage) {
+    var ps = [];
+    var srcs = Array.prototype.slice.call(document.querySelectorAll('input[name=src]:checked'))
+      .map(function (c) { return c.value; });
+    if (srcs.length) ps.push('sources=' + srcs.join(','));
+    var iv = $('interval').value.trim(); if (iv && iv !== '30m') ps.push('interval=' + encodeURIComponent(iv));
+    var ph = $('phase').value.trim(); if (ph && ph !== '0') ps.push('phase=' + ph);
+    if (!forPage) {
+      if ($('w').value) ps.push('w=' + $('w').value);
+      if ($('h').value) ps.push('h=' + $('h').value);
+      if ($('fit').value) ps.push('fit=' + $('fit').value);
+    } else if ($('sleep').value) ps.push('sleep=' + $('sleep').value);
+    return ps.length ? '?' + ps.join('&') : '';
+  }
+  var HINTS = {
+    visionect: 'Point the VSS session at this page URL and set “Automatic page reload” to 0 — the page paces itself, swaps exactly at slot boundaries, and puts the panel to sleep until the next change.',
+    png: 'Fetch at least as often as the dwell interval (slower silently skips papers). Honor the ETag/304 and the X-Broadsheet-Next-Change header to sleep precisely.',
+    trmnl: 'Point TRMNL/BYOS firmware at this endpoint; refresh_rate wakes it exactly at the next slot boundary. Note: stock TRMNL firmware needs the upcoming 1-bit output format; PNG-capable clients work today.'
+  };
+  function previewParams() {
+    // Rotation params only — the preview always renders at its own width.
+    var ps = [];
+    var srcs = Array.prototype.slice.call(document.querySelectorAll('input[name=src]:checked'))
+      .map(function (c) { return c.value; });
+    if (srcs.length) ps.push('sources=' + srcs.join(','));
+    var iv = $('interval').value.trim();
+    if (/^\d+[smh]$/.test(iv) && iv !== '30m') ps.push('interval=' + encodeURIComponent(iv));
+    var ph = $('phase').value.trim(); if (ph && ph !== '0') ps.push('phase=' + ph);
+    ps.push('w=420');
+    return '?' + ps.join('&');
+  }
+  function update() {
+    var t = $('target').value, url;
+    if (t === 'visionect') url = base + '/rotation' + params(true);
+    else if (t === 'png') url = base + '/rotation.png' + params(false);
+    else url = base + '/api/display' + params(false);
+    $('out').value = url;
+    $('hints').textContent = HINTS[t];
+    $('pngopts').hidden = (t === 'visionect');
+    $('sleepopt').hidden = (t !== 'visionect');
+    $('preview').src = '/rotation.png' + previewParams();
+  }
+  $('preview').addEventListener('error', function () { this.hidden = true; });
+  $('preview').addEventListener('load', function () { this.hidden = false; });
+  document.getElementById('bform').addEventListener('input', update);
+  $('copy').addEventListener('click', function () {
+    $('out').select(); document.execCommand('copy');
+  });
+  update();
+})();
+</script>
+{{template "bottom" .}}{{end}}

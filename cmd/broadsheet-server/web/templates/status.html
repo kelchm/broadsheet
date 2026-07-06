@@ -1,0 +1,31 @@
+{{define "page_status"}}{{template "top" .}}
+<h1>Status</h1>
+<div class="cards">
+  <div class="card"><span class="label">Version</span><strong>{{.Version}}</strong><small>{{.Commit}}</small></div>
+  <div class="card"><span class="label">Ready</span><strong>{{if .Ready}}yes{{else}}filling archive…{{end}}</strong></div>
+  <div class="card"><span class="label">Enabled papers</span><strong>{{.Enabled}}</strong><small>of {{.CatalogSize}} in the catalog</small></div>
+</div>
+
+<h2>Source health</h2>
+<div hx-get="/admin/fragments/health" hx-trigger="every 30s" hx-swap="innerHTML">
+  {{template "health_table" .Rows}}
+</div>
+{{template "bottom" .}}{{end}}
+
+{{define "health_table"}}
+<table>
+  <thead><tr><th>Paper</th><th>Last clean poll</th><th>Last edition</th><th>Last error</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr>
+      <td>{{.Name}}</td>
+      <td>{{if .LastPoll}}{{.LastPoll}}{{else}}<span class="muted">never</span>{{end}}</td>
+      <td>{{if .LastEdition}}{{.LastEdition}}{{else}}<span class="muted">none yet</span>{{end}}</td>
+      <td>{{if .Err}}<span class="badge err" title="{{.ErrDetail}}">{{.Err}}</span>{{else}}<span class="badge ok">ok</span>{{end}}</td>
+    </tr>
+  {{else}}
+    <tr><td colspan="4" class="muted">Nothing enabled — pick papers on the Papers page.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}

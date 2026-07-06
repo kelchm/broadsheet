@@ -6,7 +6,7 @@ package main
 // params, so any client can fetch, preview, or retry without perturbing
 // anything. Every response carries a forward-looking refresh hint (seconds to
 // the next slot boundary) in the transport each client class understands:
-// Cache-Control/X-Engine-Next-Change for raw pullers, refresh_rate for
+// Cache-Control/X-Broadsheet-Next-Change for raw pullers, refresh_rate for
 // TRMNL, and okular.Sleep on the display page for Visionect panels.
 
 import (
@@ -133,8 +133,8 @@ func handleRotationPNG(p *broadsheet.Engine) http.HandlerFunc {
 		hint := secondsUntil(rot.NextChange)
 		w.Header().Set("ETag", res.ETag)
 		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", hint))
-		w.Header().Set("X-Engine-Next-Change", strconv.Itoa(hint))
-		w.Header().Set("X-Engine-Slot", strconv.FormatInt(rot.Slot, 10))
+		w.Header().Set("X-Broadsheet-Next-Change", strconv.Itoa(hint))
+		w.Header().Set("X-Broadsheet-Slot", strconv.FormatInt(rot.Slot, 10))
 		if etagMatches(r.Header.Get("If-None-Match"), res.ETag) {
 			w.WriteHeader(http.StatusNotModified)
 			return

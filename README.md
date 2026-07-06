@@ -91,6 +91,7 @@ idempotent read: previews, proxies, monitors, and curl can't perturb a display.
 | `GET /paper/{id}.png` | The newest archived edition for one source. `ETag`'d pure read. |
 | `GET /paper/{id}/{date}.png` | A specific archived edition (`YYYYMMDD`). |
 | `GET /sources` | JSON: the configured sources and their health. |
+| `GET /admin` | **The admin UI** — status, the paper catalog with live enable/disable, and a device-URL builder. Server-rendered + htmx; no build step. With `BROADSHEET_ADMIN_TOKEN` set, visit `/admin?token=<token>` once to enable the mutation buttons. |
 | `/api/v1/…` | The management plane: `GET /status`, `GET /sources` (full catalog + enabled flags + health), `PATCH /sources/{id}` (`{"enabled": bool}` — applies live), `POST /sources/{id}/refresh`, `GET /sources/{id}/editions`. Mutations honor `BROADSHEET_ADMIN_TOKEN` when set. |
 | `GET /health` | Liveness — 200 as long as the process is up. |
 | `GET /healthz` | Readiness — 200 once there's at least one edition archived. |

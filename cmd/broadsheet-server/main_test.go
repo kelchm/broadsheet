@@ -88,15 +88,15 @@ func TestPaper_ServesImageWithHeaders(t *testing.T) {
 	if ct := resp.Header.Get("Content-Type"); ct != "image/png" {
 		t.Errorf("Content-Type = %q, want image/png", ct)
 	}
-	if got := resp.Header.Get("X-Engine-Source"); got != "a" {
-		t.Errorf("X-Engine-Source = %q, want a", got)
+	if got := resp.Header.Get("X-Broadsheet-Source"); got != "a" {
+		t.Errorf("X-Broadsheet-Source = %q, want a", got)
 	}
-	for _, h := range []string{"X-Engine-Width", "X-Engine-Height", "X-Engine-Days-Old"} {
+	for _, h := range []string{"X-Broadsheet-Width", "X-Broadsheet-Height", "X-Broadsheet-Days-Old"} {
 		if resp.Header.Get(h) == "" {
 			t.Errorf("missing header %s", h)
 		}
 	}
-	if resp.Header.Get("X-Engine-Stale") != "" {
+	if resp.Header.Get("X-Broadsheet-Stale") != "" {
 		t.Error("direct /paper read must never be marked stale")
 	}
 }
@@ -111,7 +111,7 @@ func TestPaper_UnknownSourceIs404(t *testing.T) {
 // TestCurrent_AdvancesPerDevice characterizes the shipped advance-on-GET
 // rotation contract: each load moves a device to the next source, devices are
 // independent, and a source with nothing archived serves the cross-source
-// fallback with X-Engine-Stale.
+// fallback with X-Broadsheet-Stale.
 func TestCurrent_AdvancesPerDevice(t *testing.T) {
 	srv := newTestServer(t)
 
@@ -122,8 +122,8 @@ func TestCurrent_AdvancesPerDevice(t *testing.T) {
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("/current.png = %d, want 200", resp.StatusCode)
 			}
-			s := resp.Header.Get("X-Engine-Source")
-			if resp.Header.Get("X-Engine-Stale") == "true" {
+			s := resp.Header.Get("X-Broadsheet-Source")
+			if resp.Header.Get("X-Broadsheet-Stale") == "true" {
 				s += ":stale"
 			}
 			out = append(out, s)
@@ -151,7 +151,7 @@ func TestCurrent_SourcesFilterRestrictsRotation(t *testing.T) {
 	srv := newTestServer(t)
 	for i := range 3 {
 		resp := get(t, srv.URL+"/current.png?device=d&sources=a")
-		if got := resp.Header.Get("X-Engine-Source"); got != "a" {
+		if got := resp.Header.Get("X-Broadsheet-Source"); got != "a" {
 			t.Fatalf("load %d: source = %q, want pinned to a", i, got)
 		}
 	}
@@ -209,16 +209,16 @@ func TestRotationPNG_IdempotentWithCachingHeaders(t *testing.T) {
 	if cc := resp.Header.Get("Cache-Control"); !strings.HasPrefix(cc, "public, max-age=") {
 		t.Errorf("Cache-Control = %q, want public, max-age=<to boundary>", cc)
 	}
-	if next := resp.Header.Get("X-Engine-Next-Change"); next == "" {
-		t.Error("missing X-Engine-Next-Change refresh hint")
+	if next := resp.Header.Get("X-Broadsheet-Next-Change"); next == "" {
+		t.Error("missing X-Broadsheet-Next-Change refresh hint")
 	}
-	if resp.Header.Get("X-Engine-Slot") == "" {
-		t.Error("missing X-Engine-Slot")
+	if resp.Header.Get("X-Broadsheet-Slot") == "" {
+		t.Error("missing X-Broadsheet-Slot")
 	}
 
 	// Idempotent: a second fetch at the same instant serves the same source.
 	resp2 := get(t, srv.URL+"/rotation.png?interval=1h")
-	if a, b := resp.Header.Get("X-Engine-Source"), resp2.Header.Get("X-Engine-Source"); a != b {
+	if a, b := resp.Header.Get("X-Broadsheet-Source"), resp2.Header.Get("X-Broadsheet-Source"); a != b {
 		t.Errorf("two reads changed the answer: %q then %q — rotation reads must not mutate", a, b)
 	}
 
@@ -240,21 +240,21 @@ func TestRotationPNG_ExplicitSlotAndSubstitution(t *testing.T) {
 
 	// slot=0 selects a directly.
 	resp := get(t, srv.URL+"/rotation.png?slot=0")
-	if got := resp.Header.Get("X-Engine-Source"); got != "a" {
+	if got := resp.Header.Get("X-Broadsheet-Source"); got != "a" {
 		t.Errorf("slot=0 source = %q, want a", got)
 	}
-	if resp.Header.Get("X-Engine-Stale") != "" {
+	if resp.Header.Get("X-Broadsheet-Stale") != "" {
 		t.Error("direct slot must not be substituted")
 	}
 
 	// slot=1 selects b, which has nothing archived: deterministic substitution
 	// to a, marked stale.
 	resp = get(t, srv.URL+"/rotation.png?slot=1")
-	if got := resp.Header.Get("X-Engine-Source"); got != "a" {
+	if got := resp.Header.Get("X-Broadsheet-Source"); got != "a" {
 		t.Errorf("slot=1 source = %q, want substituted a", got)
 	}
-	if resp.Header.Get("X-Engine-Stale") != "true" {
-		t.Error("substituted slot must carry X-Engine-Stale")
+	if resp.Header.Get("X-Broadsheet-Stale") != "true" {
+		t.Error("substituted slot must carry X-Broadsheet-Stale")
 	}
 }
 
@@ -634,5 +634,164 @@ func TestAPI_RefreshIsTokenGated(t *testing.T) {
 	defer func() { _ = resp2.Body.Close() }()
 	if resp2.StatusCode != http.StatusNotFound {
 		t.Errorf("refresh unknown = %d, want 404", resp2.StatusCode)
+	}
+}
+
+func TestUI_PagesRender(t *testing.T) {
+	srv := newStoreBackedServer(t, "")
+
+	resp := get(t, srv.URL+"/admin")
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), "Source health") {
+		t.Errorf("/admin = %d, want status page", resp.StatusCode)
+	}
+
+	resp = get(t, srv.URL+"/admin/papers")
+	body, _ = io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/admin/papers = %d, want 200", resp.StatusCode)
+	}
+	if got := strings.Count(string(body), "<tr id=\"row-"); got < 500 {
+		t.Errorf("papers page has %d rows, want the full catalog", got)
+	}
+	if !strings.Contains(string(body), "row-ny-nyt") {
+		t.Error("papers page missing ny-nyt row")
+	}
+
+	resp = get(t, srv.URL+"/admin/builder")
+	body, _ = io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), "/rotation") {
+		t.Errorf("/admin/builder = %d, want builder page", resp.StatusCode)
+	}
+
+	resp = get(t, srv.URL+"/static/htmx.min.js")
+	if resp.StatusCode != http.StatusOK || resp.Header.Get("Cache-Control") == "" {
+		t.Errorf("/static/htmx.min.js = %d, want cached 200", resp.StatusCode)
+	}
+}
+
+func TestUI_ToggleSwapsRow(t *testing.T) {
+	srv := newStoreBackedServer(t, "")
+
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/admin/papers/usat/toggle?to=true", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("toggle = %d, want 200", resp.StatusCode)
+	}
+	frag := string(body)
+	if !strings.Contains(frag, `id="row-usat"`) || !strings.Contains(frag, ">disable<") {
+		t.Errorf("toggle fragment should be the updated (enabled) row, got: %.200s", frag)
+	}
+	// The engine applied it live.
+	var status struct {
+		SourcesEnabled int `json:"sources_enabled"`
+	}
+	r2 := get(t, srv.URL+"/api/v1/status")
+	_ = json.NewDecoder(r2.Body).Decode(&status)
+	if status.SourcesEnabled != 6 {
+		t.Errorf("sources_enabled = %d, want 6 after UI toggle", status.SourcesEnabled)
+	}
+
+	// Idempotent: repeating the same rendered button's request changes nothing.
+	req2, _ := http.NewRequest(http.MethodPost, srv.URL+"/admin/papers/usat/toggle?to=true", nil)
+	resp3, err := http.DefaultClient.Do(req2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp3.Body.Close()
+	r3 := get(t, srv.URL+"/api/v1/status")
+	_ = json.NewDecoder(r3.Body).Decode(&status)
+	if status.SourcesEnabled != 6 {
+		t.Errorf("sources_enabled = %d after repeat, want still 6 (idempotent)", status.SourcesEnabled)
+	}
+}
+
+func TestUI_TokenGateWithCookieFlow(t *testing.T) {
+	srv := newStoreBackedServer(t, "sekrit")
+
+	// Mutation without any credential: 401.
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/admin/papers/usat/toggle?to=true", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("toggle without credential = %d, want 401", resp.StatusCode)
+	}
+
+	// Visiting a page with ?token= plants the cookie and REDIRECTS with the
+	// secret stripped from the URL (history/proxy-log hygiene).
+	noFollow := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	pageResp, err := noFollow.Get(srv.URL + "/admin?token=sekrit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = pageResp.Body.Close() }()
+	if pageResp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("?token= = %d, want 303 redirect stripping the token", pageResp.StatusCode)
+	}
+	if loc := pageResp.Header.Get("Location"); strings.Contains(loc, "token") {
+		t.Errorf("redirect Location %q still carries the token", loc)
+	}
+	var cookie *http.Cookie
+	for _, c := range pageResp.Cookies() {
+		if c.Name == adminCookie {
+			cookie = c
+		}
+	}
+	if cookie == nil {
+		t.Fatal("?token= should plant the admin cookie")
+	}
+	if cookie.SameSite != http.SameSiteStrictMode || !cookie.HttpOnly {
+		t.Error("admin cookie must be SameSite=Strict and HttpOnly")
+	}
+	if strings.Contains(cookie.Value, "sekrit") {
+		t.Error("cookie value must be a digest, never the raw secret")
+	}
+	// …and the wrong token neither redirects nor plants a cookie.
+	wrongResp, err := noFollow.Get(srv.URL + "/admin?token=wrong")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = wrongResp.Body.Close() }()
+	if wrongResp.StatusCode != http.StatusOK {
+		t.Errorf("wrong ?token= = %d, want plain 200 page", wrongResp.StatusCode)
+	}
+	for _, c := range wrongResp.Cookies() {
+		if c.Name == adminCookie {
+			t.Error("wrong ?token= must not plant a cookie")
+		}
+	}
+
+	// A forged cookie value must not.
+	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/admin/papers/usat/toggle?to=true", nil)
+	req.AddCookie(&http.Cookie{Name: adminCookie, Value: "forged"}) //nolint:gosec // G124: deliberately forged client-side cookie under test
+	respF, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = respF.Body.Close()
+	if respF.StatusCode != http.StatusUnauthorized {
+		t.Errorf("forged cookie = %d, want 401", respF.StatusCode)
+	}
+
+	// The cookie authorizes mutations.
+	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/admin/papers/usat/toggle?to=true", nil)
+	req.AddCookie(cookie)
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp2.Body.Close() }()
+	if resp2.StatusCode != http.StatusOK {
+		t.Errorf("toggle with cookie = %d, want 200", resp2.StatusCode)
 	}
 }
