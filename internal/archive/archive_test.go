@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 func ed(date string, body string) source.Edition {

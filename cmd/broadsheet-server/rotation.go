@@ -6,7 +6,7 @@ package main
 // params, so any client can fetch, preview, or retry without perturbing
 // anything. Every response carries a forward-looking refresh hint (seconds to
 // the next slot boundary) in the transport each client class understands:
-// Cache-Control/X-Paperboy-Next-Change for raw pullers, refresh_rate for
+// Cache-Control/X-Engine-Next-Change for raw pullers, refresh_rate for
 // TRMNL, and okular.Sleep on the display page for Visionect panels.
 
 import (
@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kelchm/paperboy/pkg/paperboy"
+	"github.com/kelchm/broadsheet/pkg/broadsheet"
 )
 
 // parseRotationSpec extracts rotation params from the query.
@@ -32,8 +32,8 @@ import (
 //	?phase=     integer slot offset (same playlist, deliberately out of step)
 //	?slot=      explicit absolute slot index (display pages address slots
 //	            explicitly so a given URL always yields the same paper)
-func parseRotationSpec(q url.Values) (paperboy.RotationSpec, error) {
-	var spec paperboy.RotationSpec
+func parseRotationSpec(q url.Values) (broadsheet.RotationSpec, error) {
+	var spec broadsheet.RotationSpec
 	if s := q.Get("sources"); s != "" {
 		spec.Sources = splitSources(s)
 	}
@@ -66,11 +66,11 @@ func parseRotationSpec(q url.Values) (paperboy.RotationSpec, error) {
 // real server-side failure.
 func writeEngineError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, paperboy.ErrNoSourcesMatch):
+	case errors.Is(err, broadsheet.ErrNoSourcesMatch):
 		http.Error(w, err.Error(), http.StatusBadRequest)
-	case errors.Is(err, paperboy.ErrUnknownSource), errors.Is(err, paperboy.ErrEditionNotFound):
+	case errors.Is(err, broadsheet.ErrUnknownSource), errors.Is(err, broadsheet.ErrEditionNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
-	case errors.Is(err, paperboy.ErrNoneAvailable):
+	case errors.Is(err, broadsheet.ErrNoneAvailable):
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	default:
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -108,7 +108,7 @@ func etagMatches(ifNoneMatch, etag string) bool {
 	return false
 }
 
-func handleRotationPNG(p *paperboy.Paperboy) http.HandlerFunc {
+func handleRotationPNG(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		opts, err := parseRenderOpts(r)
 		if err != nil {
@@ -133,8 +133,8 @@ func handleRotationPNG(p *paperboy.Paperboy) http.HandlerFunc {
 		hint := secondsUntil(rot.NextChange)
 		w.Header().Set("ETag", res.ETag)
 		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", hint))
-		w.Header().Set("X-Paperboy-Next-Change", strconv.Itoa(hint))
-		w.Header().Set("X-Paperboy-Slot", strconv.FormatInt(rot.Slot, 10))
+		w.Header().Set("X-Engine-Next-Change", strconv.Itoa(hint))
+		w.Header().Set("X-Engine-Slot", strconv.FormatInt(rot.Slot, 10))
 		if etagMatches(r.Header.Get("If-None-Match"), res.ETag) {
 			w.WriteHeader(http.StatusNotModified)
 			return
@@ -156,7 +156,7 @@ var rotationTmpl = template.Must(template.New("rotation").Parse(`<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="43200">
-<title>paperboy</title>
+<title>broadsheet</title>
 <style>
   :root { --pad: 3vmin; }
   html, body { margin: 0; height: 100%; background: #fff; }
@@ -235,7 +235,7 @@ var rotationTmpl = template.Must(template.New("rotation").Parse(`<!doctype html>
 </html>
 `))
 
-func handleRotationPage(p *paperboy.Paperboy) http.HandlerFunc {
+func handleRotationPage(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		spec, err := parseRotationSpec(r.URL.Query())
 		if err != nil {
@@ -249,13 +249,13 @@ func handleRotationPage(p *paperboy.Paperboy) http.HandlerFunc {
 		// Validate the rotation server-side so a typo'd provisioned URL fails
 		// loudly here instead of rendering a permanently broken e-ink frame.
 		// A still-filling archive (ErrNoneAvailable) is fine: the page retries.
-		if _, err := p.ResolveRotation(spec); errors.Is(err, paperboy.ErrNoSourcesMatch) {
+		if _, err := p.ResolveRotation(spec); errors.Is(err, broadsheet.ErrNoSourcesMatch) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		interval := spec.Interval
 		if interval <= 0 {
-			interval = paperboy.DefaultRotationInterval
+			interval = broadsheet.DefaultRotationInterval
 		}
 		// The initial image is now-resolved (no slot, no width): correct without
 		// JS, at master resolution CSS scales down.
@@ -284,7 +284,7 @@ func handleRotationPage(p *paperboy.Paperboy) http.HandlerFunc {
 // same stateless rotation: the envelope carries a slot-explicit image URL plus
 // refresh_rate = seconds to the next slot boundary, so stock TRMNL/BYOS
 // firmware wakes exactly when the content changes.
-func handleTRMNLDisplay(p *paperboy.Paperboy) http.HandlerFunc {
+func handleTRMNLDisplay(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		opts, err := parseRenderOpts(r)
 		if err != nil {
@@ -307,7 +307,7 @@ func handleTRMNLDisplay(p *paperboy.Paperboy) http.HandlerFunc {
 		}
 		date, ok := p.NewestEdition(rot.SourceID)
 		if !ok {
-			writeEngineError(w, paperboy.ErrNoneAvailable) // pruned between resolve and here
+			writeEngineError(w, broadsheet.ErrNoneAvailable) // pruned between resolve and here
 			return
 		}
 

@@ -1,17 +1,17 @@
 services:
-  paperboy:
+  broadsheet:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: paperboy:latest
-    container_name: paperboy
+    image: broadsheet:latest
+    container_name: broadsheet
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
-      - paperboy-data:/data
+      - broadsheet-data:/data
     environment:
-      PAPERBOY_LOG_LEVEL: info
+      BROADSHEET_LOG_LEVEL: info
 
 volumes:
-  paperboy-data:
+  broadsheet-data:

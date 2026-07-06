@@ -44,7 +44,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/paperboy
+          images: ghcr.io/${{ github.repository_owner }}/broadsheet
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short,enable={{is_default_branch}}
@@ -62,7 +62,7 @@ jobs:
           file: docker/Dockerfile
           platforms: linux/amd64
           load: true
-          tags: paperboy-smoke:amd64
+          tags: broadsheet-smoke:amd64
           build-args: |
             VERSION=${{ steps.meta.outputs.version || 'dev' }}
             REVISION=${{ github.sha }}
@@ -74,7 +74,7 @@ jobs:
           file: docker/Dockerfile
           platforms: linux/arm64
           load: true
-          tags: paperboy-smoke:arm64
+          tags: broadsheet-smoke:arm64
           build-args: |
             VERSION=${{ steps.meta.outputs.version || 'dev' }}
             REVISION=${{ github.sha }}
@@ -83,10 +83,10 @@ jobs:
       - name: Smoke test images
         run: |
           # Exercises the dynamic loader + bundled MuPDF linkage on both arches.
-          docker run --rm --platform linux/amd64 paperboy-smoke:amd64 --version
-          docker run --rm --platform linux/arm64 paperboy-smoke:arm64 --version
+          docker run --rm --platform linux/amd64 broadsheet-smoke:amd64 --version
+          docker run --rm --platform linux/arm64 broadsheet-smoke:arm64 --version
           # Boot the amd64 server and poll liveness (random host port).
-          cid=$(docker run -d -P paperboy-smoke:amd64)
+          cid=$(docker run -d -P broadsheet-smoke:amd64)
           trap 'docker rm -f "$cid" >/dev/null' EXIT
           addr=$(docker port "$cid" 8080/tcp | head -n1)
           for i in $(seq 1 20); do

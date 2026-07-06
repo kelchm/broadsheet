@@ -1,4 +1,4 @@
-module github.com/kelchm/paperboy
+module github.com/kelchm/broadsheet
 
 go 1.26.4
 

@@ -12,8 +12,8 @@ import (
 
 	"github.com/disintegration/imaging"
 
-	"github.com/kelchm/paperboy/internal/rasterize"
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/rasterize"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 // Renderer produces master-width PNGs from archived artifacts.

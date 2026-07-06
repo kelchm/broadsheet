@@ -1,4 +1,4 @@
-// Command paperboy-server runs the HTTP API for paperboy.
+// Command broadsheet-server runs the HTTP API for broadsheet.
 package main
 
 import (
@@ -20,28 +20,44 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/kelchm/paperboy/internal/buildinfo"
-	"github.com/kelchm/paperboy/pkg/paperboy"
+	"github.com/kelchm/broadsheet/internal/buildinfo"
+	"github.com/kelchm/broadsheet/pkg/broadsheet"
 )
 
 type envConfig struct {
-	Port         int           `env:"PAPERBOY_PORT" envDefault:"8080"`
-	DataDir      string        `env:"PAPERBOY_DATA_DIR" envDefault:"./data"`
-	Width        int           `env:"PAPERBOY_WIDTH" envDefault:"1600"`
-	LogLevel     string        `env:"PAPERBOY_LOG_LEVEL" envDefault:"info"`
-	PollInterval time.Duration `env:"PAPERBOY_POLL_INTERVAL" envDefault:"30m"`
-	ArchiveDays  int           `env:"PAPERBOY_ARCHIVE_DAYS" envDefault:"14"`
+	Port         int           `env:"BROADSHEET_PORT" envDefault:"8080"`
+	DataDir      string        `env:"BROADSHEET_DATA_DIR" envDefault:"./data"`
+	Width        int           `env:"BROADSHEET_WIDTH" envDefault:"1600"`
+	LogLevel     string        `env:"BROADSHEET_LOG_LEVEL" envDefault:"info"`
+	PollInterval time.Duration `env:"BROADSHEET_POLL_INTERVAL" envDefault:"30m"`
+	ArchiveDays  int           `env:"BROADSHEET_ARCHIVE_DAYS" envDefault:"14"`
 	// AdminToken, when set, gates mutating /api/v1 calls behind
 	// "Authorization: Bearer <token>". Empty = open (trusted-network default).
-	AdminToken string `env:"PAPERBOY_ADMIN_TOKEN"`
+	AdminToken string `env:"BROADSHEET_ADMIN_TOKEN"`
 }
 
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--version", "-v", "version":
-			fmt.Println("paperboy-server", buildinfo.String())
+			fmt.Println("broadsheet-server", buildinfo.String())
 			return
+		}
+	}
+
+	// Pre-rename deployments set PAPERBOY_* — map any without a BROADSHEET_*
+	// counterpart so an upgrade doesn't reset config, and warn below so the
+	// operator migrates. The fallback goes away at 1.0.
+	var legacyEnv []string
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "PAPERBOY_") {
+			continue
+		}
+		k, v, _ := strings.Cut(kv, "=")
+		nk := "BROADSHEET_" + strings.TrimPrefix(k, "PAPERBOY_")
+		if _, set := os.LookupEnv(nk); !set {
+			_ = os.Setenv(nk, v)
+			legacyEnv = append(legacyEnv, k)
 		}
 	}
 
@@ -57,8 +73,11 @@ func main() {
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 	slog.SetDefault(logger)
+	if len(legacyEnv) > 0 {
+		logger.Warn("PAPERBOY_* environment variables are deprecated; rename them to BROADSHEET_*", "mapped", legacyEnv)
+	}
 
-	p, err := paperboy.New(paperboy.Config{
+	p, err := broadsheet.New(broadsheet.Config{
 		DataDir:      ec.DataDir,
 		Width:        ec.Width,
 		PollInterval: ec.PollInterval,
@@ -66,7 +85,7 @@ func main() {
 		Logger:       logger,
 	})
 	if err != nil {
-		logger.Error("init paperboy", "err", err)
+		logger.Error("init broadsheet", "err", err)
 		os.Exit(1)
 	}
 
@@ -83,7 +102,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("paperboy-server listening", "addr", addr, "version", buildinfo.Version, "commit", buildinfo.Commit, "data_dir", ec.DataDir)
+		logger.Info("broadsheet-server listening", "addr", addr, "version", buildinfo.Version, "commit", buildinfo.Commit, "data_dir", ec.DataDir)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server stopped", "err", err)
 			os.Exit(1)
@@ -105,7 +124,7 @@ func main() {
 
 // newRouter assembles the real route table. Kept separate from main() so
 // httptest can exercise exactly what production serves.
-func newRouter(p *paperboy.Paperboy, logger *slog.Logger, adminToken string) http.Handler {
+func newRouter(p *broadsheet.Engine, logger *slog.Logger, adminToken string) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
@@ -118,7 +137,7 @@ func newRouter(p *paperboy.Paperboy, logger *slog.Logger, adminToken string) htt
 	r.Get("/api/display", handleTRMNLDisplay(p))
 
 	// The management plane (see api.go): what the admin UI talks to. Reads are
-	// open; mutations honor PAPERBOY_ADMIN_TOKEN when configured.
+	// open; mutations honor BROADSHEET_ADMIN_TOKEN when configured.
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Get("/status", handleAPIStatus(p))
 		api.Get("/sources", handleAPISources(p))
@@ -155,7 +174,7 @@ const displayHTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>paperboy</title>
+<title>broadsheet</title>
 <style>
   :root { --pad: 3vmin; }
   html, body { margin: 0; height: 100%; background: #fff; }
@@ -215,7 +234,7 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("ok\n"))
 }
 
-func handleReadiness(p *paperboy.Paperboy) http.HandlerFunc {
+func handleReadiness(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		if p.Ready() {
 			w.WriteHeader(http.StatusOK)
@@ -232,12 +251,12 @@ type sourcesResp struct {
 }
 
 type sourceRespEntry struct {
-	ID          string                `json:"id"`
-	DisplayName string                `json:"display_name"`
-	Health      paperboy.SourceHealth `json:"health"`
+	ID          string                  `json:"id"`
+	DisplayName string                  `json:"display_name"`
+	Health      broadsheet.SourceHealth `json:"health"`
 }
 
-func handleSources(p *paperboy.Paperboy) http.HandlerFunc {
+func handleSources(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		srcs := p.ListSources()
 		h := p.HealthSnapshot()
@@ -253,7 +272,7 @@ func handleSources(p *paperboy.Paperboy) http.HandlerFunc {
 	}
 }
 
-func handleCurrent(p *paperboy.Paperboy) http.HandlerFunc {
+func handleCurrent(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		opts, err := parseRenderOpts(r)
 		if err != nil {
@@ -272,7 +291,7 @@ func handleCurrent(p *paperboy.Paperboy) http.HandlerFunc {
 	}
 }
 
-func handlePaper(p *paperboy.Paperboy) http.HandlerFunc {
+func handlePaper(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		opts, err := parseRenderOpts(r)
@@ -310,9 +329,9 @@ func handlePaper(p *paperboy.Paperboy) http.HandlerFunc {
 //	              Unknown IDs are skipped; all-unknown is an error.
 //	?device=      device id for per-device rotation (/current.png only); if
 //	              absent the client IP is used. Set on opts by the handler.
-func parseRenderOpts(r *http.Request) (paperboy.RenderOptions, error) {
+func parseRenderOpts(r *http.Request) (broadsheet.RenderOptions, error) {
 	q := r.URL.Query()
-	var opts paperboy.RenderOptions
+	var opts broadsheet.RenderOptions
 
 	posInt := func(key string) (int, error) {
 		s := q.Get(key)
@@ -334,9 +353,9 @@ func parseRenderOpts(r *http.Request) (paperboy.RenderOptions, error) {
 		return opts, err
 	}
 	if fit := q.Get("fit"); fit != "" {
-		switch paperboy.FitMode(fit) {
-		case paperboy.FitContain, paperboy.FitCover:
-			opts.Fit = paperboy.FitMode(fit)
+		switch broadsheet.FitMode(fit) {
+		case broadsheet.FitContain, broadsheet.FitCover:
+			opts.Fit = broadsheet.FitMode(fit)
 		default:
 			return opts, fmt.Errorf("invalid fit=%q (want contain or cover)", fit)
 		}
@@ -386,18 +405,18 @@ func deviceID(r *http.Request) string {
 	return "ip:" + host
 }
 
-// writeImageBody sets the X-Paperboy-* metadata headers and writes the PNG.
+// writeImageBody sets the X-Engine-* metadata headers and writes the PNG.
 // Caching headers (Cache-Control, ETag) are the caller's business — they
 // differ per endpoint semantics.
-func writeImageBody(w http.ResponseWriter, res *paperboy.Result) {
+func writeImageBody(w http.ResponseWriter, res *broadsheet.Result) {
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Content-Length", strconv.Itoa(len(res.Image)))
-	w.Header().Set("X-Paperboy-Source", res.SourceID)
-	w.Header().Set("X-Paperboy-Days-Old", fmt.Sprintf("%d", res.DaysOld))
-	w.Header().Set("X-Paperboy-Width", fmt.Sprintf("%d", res.Width))
-	w.Header().Set("X-Paperboy-Height", fmt.Sprintf("%d", res.Height))
+	w.Header().Set("X-Engine-Source", res.SourceID)
+	w.Header().Set("X-Engine-Days-Old", fmt.Sprintf("%d", res.DaysOld))
+	w.Header().Set("X-Engine-Width", fmt.Sprintf("%d", res.Width))
+	w.Header().Set("X-Engine-Height", fmt.Sprintf("%d", res.Height))
 	if res.Stale {
-		w.Header().Set("X-Paperboy-Stale", "true")
+		w.Header().Set("X-Engine-Stale", "true")
 	}
 	_, _ = w.Write(res.Image) //nolint:gosec // G705: res.Image is server-rendered PNG bytes served as image/png, not user-controlled markup
 }

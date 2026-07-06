@@ -1,4 +1,4 @@
-package paperboy
+package broadsheet
 
 import (
 	"context"
@@ -10,16 +10,16 @@ import (
 
 	"github.com/disintegration/imaging"
 
-	"github.com/kelchm/paperboy/internal/archive"
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/archive"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 var rotNow = time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC) // exactly on a 30m boundary
 
-// newRotationPaperboy builds an engine with the given source IDs (in order),
+// newRotationEngine builds an engine with the given source IDs (in order),
 // archiving a MediaImage edition only for those in withContent, and pins the
 // clock to rotNow.
-func newRotationPaperboy(t *testing.T, withContent map[string]bool, ids ...string) *Paperboy {
+func newRotationEngine(t *testing.T, withContent map[string]bool, ids ...string) *Engine {
 	t.Helper()
 	dir := t.TempDir()
 	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
@@ -44,7 +44,7 @@ func newRotationPaperboy(t *testing.T, withContent map[string]bool, ids ...strin
 }
 
 func TestResolveRotation_SlotMathAndBoundary(t *testing.T) {
-	p := newRotationPaperboy(t, map[string]bool{"a": true, "b": true}, "a", "b")
+	p := newRotationEngine(t, map[string]bool{"a": true, "b": true}, "a", "b")
 	spec := RotationSpec{Interval: 30 * time.Minute}
 
 	rot, err := p.ResolveRotation(spec)
@@ -78,7 +78,7 @@ func TestResolveRotation_SlotMathAndBoundary(t *testing.T) {
 }
 
 func TestResolveRotation_NegativePhaseAndExplicitSlot(t *testing.T) {
-	p := newRotationPaperboy(t, map[string]bool{"a": true, "b": true, "c": true}, "a", "b", "c")
+	p := newRotationEngine(t, map[string]bool{"a": true, "b": true, "c": true}, "a", "b", "c")
 
 	if _, err := p.ResolveRotation(RotationSpec{Phase: -7}); err != nil {
 		t.Fatalf("negative phase: %v", err)
@@ -104,7 +104,7 @@ func TestResolveRotation_NegativePhaseAndExplicitSlot(t *testing.T) {
 }
 
 func TestResolveRotation_SkipsEmptySourcesDeterministically(t *testing.T) {
-	p := newRotationPaperboy(t, map[string]bool{"a": true}, "b", "a") // b has nothing archived
+	p := newRotationEngine(t, map[string]bool{"a": true}, "b", "a") // b has nothing archived
 
 	slot := int64(0) // selects b
 	rot, err := p.ResolveRotation(RotationSpec{Slot: &slot})
@@ -123,7 +123,7 @@ func TestResolveRotation_SkipsEmptySourcesDeterministically(t *testing.T) {
 }
 
 func TestResolveRotation_Errors(t *testing.T) {
-	p := newRotationPaperboy(t, nil, "a", "b") // nothing archived at all
+	p := newRotationEngine(t, nil, "a", "b") // nothing archived at all
 	if _, err := p.ResolveRotation(RotationSpec{}); !errors.Is(err, ErrNoneAvailable) {
 		t.Errorf("empty archive: err = %v, want ErrNoneAvailable", err)
 	}
@@ -133,7 +133,7 @@ func TestResolveRotation_Errors(t *testing.T) {
 }
 
 func TestRenderRotation_IsAPureRead(t *testing.T) {
-	p := newRotationPaperboy(t, map[string]bool{"a": true, "b": true}, "a", "b")
+	p := newRotationEngine(t, map[string]bool{"a": true, "b": true}, "a", "b")
 	spec := RotationSpec{Interval: time.Hour}
 
 	first, rot1, err := p.RenderRotation(context.Background(), spec, RenderOptions{})
@@ -153,7 +153,7 @@ func TestRenderRotation_IsAPureRead(t *testing.T) {
 }
 
 func TestResult_ETagVariesWithParamsOnly(t *testing.T) {
-	p := newRotationPaperboy(t, map[string]bool{"a": true}, "a")
+	p := newRotationEngine(t, map[string]bool{"a": true}, "a")
 
 	r1, err := p.RenderFor(context.Background(), "a")
 	if err != nil {
@@ -190,7 +190,7 @@ func TestCompose_CoverNeverUpscales(t *testing.T) {
 }
 
 func TestResolveRotation_SubSecondIntervalUsesDefault(t *testing.T) {
-	p := newRotationPaperboy(t, map[string]bool{"a": true}, "a")
+	p := newRotationEngine(t, map[string]bool{"a": true}, "a")
 	// Must not panic (integer divide by zero) and must behave as unset.
 	rot, err := p.ResolveRotation(RotationSpec{Interval: 500 * time.Millisecond})
 	if err != nil {

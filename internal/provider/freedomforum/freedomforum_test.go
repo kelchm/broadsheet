@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

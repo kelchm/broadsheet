@@ -1,4 +1,4 @@
-// Package archive is paperboy's durable store of newspaper editions.
+// Package archive is broadsheet's durable store of newspaper editions.
 //
 // It is the source of truth: PDFs (or other artifacts) keyed by source and
 // edition date, written atomically, pruned by retention. The rendered PNGs are
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 const dateLayout = "20060102"

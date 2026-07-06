@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/kelchm/paperboy/internal/buildinfo"
-	"github.com/kelchm/paperboy/pkg/paperboy"
+	"github.com/kelchm/broadsheet/internal/buildinfo"
+	"github.com/kelchm/broadsheet/pkg/broadsheet"
 )
 
 // requireToken gates mutating management calls. With no token configured the
@@ -55,7 +55,7 @@ type apiSource struct {
 	Health   apiHealth `json:"health"`
 }
 
-func toAPIHealth(h paperboy.SourceHealth) apiHealth {
+func toAPIHealth(h broadsheet.SourceHealth) apiHealth {
 	return apiHealth{
 		LastPollOK:    h.LastPollOK,
 		LastEditionOK: h.LastFetchOK,
@@ -65,7 +65,7 @@ func toAPIHealth(h paperboy.SourceHealth) apiHealth {
 }
 
 // GET /api/v1/sources — the full catalog with enabled flags and health.
-func handleAPISources(p *paperboy.Paperboy) http.HandlerFunc {
+func handleAPISources(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		cat, err := p.Catalog()
 		if err != nil {
@@ -85,7 +85,7 @@ func handleAPISources(p *paperboy.Paperboy) http.HandlerFunc {
 }
 
 // PATCH /api/v1/sources/{id} — body {"enabled": bool}.
-func handleAPIPatchSource(p *paperboy.Paperboy) http.HandlerFunc {
+func handleAPIPatchSource(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Enabled *bool `json:"enabled"`
@@ -106,7 +106,7 @@ func handleAPIPatchSource(p *paperboy.Paperboy) http.HandlerFunc {
 // POST /api/v1/sources/{id}/refresh — poll one source now. Returns the
 // source's health afterwards; failures show up there (the poll itself is
 // fire-and-observe, mirroring the reconciler's semantics).
-func handleAPIRefresh(p *paperboy.Paperboy) http.HandlerFunc {
+func handleAPIRefresh(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		if err := p.Refresh(r.Context(), id); err != nil {
@@ -121,7 +121,7 @@ func handleAPIRefresh(p *paperboy.Paperboy) http.HandlerFunc {
 }
 
 // GET /api/v1/sources/{id}/editions — archived edition dates, oldest first.
-func handleAPIEditions(p *paperboy.Paperboy) http.HandlerFunc {
+func handleAPIEditions(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		dates, err := p.ListEditions(id)
@@ -138,7 +138,7 @@ func handleAPIEditions(p *paperboy.Paperboy) http.HandlerFunc {
 }
 
 // GET /api/v1/status — liveness plus a small operational summary.
-func handleAPIStatus(p *paperboy.Paperboy) http.HandlerFunc {
+func handleAPIStatus(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		enabled := len(p.ListSources())
 		cat, err := p.Catalog()
@@ -159,7 +159,7 @@ func handleAPIStatus(p *paperboy.Paperboy) http.HandlerFunc {
 
 // GET /paper/{id}/{date}.png — a specific archived edition (device plane;
 // pure read, ETag'd, long-lived cache since a dated edition rarely changes).
-func handleEdition(p *paperboy.Paperboy) http.HandlerFunc {
+func handleEdition(p *broadsheet.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		opts, err := parseRenderOpts(r)
 		if err != nil {

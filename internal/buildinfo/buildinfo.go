@@ -1,4 +1,4 @@
-// Package buildinfo carries the paperboy build version, shared by the binaries,
+// Package buildinfo carries the broadsheet build version, shared by the binaries,
 // the embeddable library, and the upstream User-Agent so they never drift.
 package buildinfo
 
@@ -7,11 +7,11 @@ package buildinfo
 // local/dev binary.
 //
 //	go build -ldflags "\
-//	  -X github.com/kelchm/paperboy/internal/buildinfo.Version=1.2.3 \
-//	  -X github.com/kelchm/paperboy/internal/buildinfo.Commit=$(git rev-parse HEAD) \
-//	  -X github.com/kelchm/paperboy/internal/buildinfo.Date=$(date -u +%FT%TZ)"
+//	  -X github.com/kelchm/broadsheet/internal/buildinfo.Version=1.2.3 \
+//	  -X github.com/kelchm/broadsheet/internal/buildinfo.Commit=$(git rev-parse HEAD) \
+//	  -X github.com/kelchm/broadsheet/internal/buildinfo.Date=$(date -u +%FT%TZ)"
 var (
-	// Version is the paperboy release version.
+	// Version is the broadsheet release version.
 	Version = "0.0.1"
 	// Commit is the git revision the binary was built from.
 	Commit = "none"
@@ -24,8 +24,8 @@ func String() string {
 	return Version + " (" + Commit + ", " + Date + ")"
 }
 
-// UserAgent is the HTTP User-Agent paperboy presents to upstream servers. It
+// UserAgent is the HTTP User-Agent broadsheet presents to upstream servers. It
 // stays Version-only — the commit/date are noise to a CDN operator.
 func UserAgent() string {
-	return "paperboy/" + Version + " (+https://github.com/kelchm/paperboy)"
+	return "broadsheet/" + Version + " (+https://github.com/kelchm/broadsheet)"
 }

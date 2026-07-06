@@ -14,8 +14,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kelchm/paperboy/internal/buildinfo"
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/buildinfo"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 // baseURL is the CDN root. A package var (not a const) so tests can point the

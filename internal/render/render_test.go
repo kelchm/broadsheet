@@ -8,7 +8,7 @@ import (
 
 	"github.com/disintegration/imaging"
 
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 func TestRenderImageResizesToWidth(t *testing.T) {

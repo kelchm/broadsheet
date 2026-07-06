@@ -1,4 +1,4 @@
-// Package store is paperboy's persistent state substrate: one SQLite file in
+// Package store is broadsheet's persistent state substrate: one SQLite file in
 // the data directory holding everything a UI can eventually mutate — the
 // source catalog's enabled set, provider version tokens, fetch-event health
 // history, and crop overrides. Artifacts (PDFs, rendered PNGs) stay on the

@@ -9,9 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/kelchm/paperboy/internal/catalog"
-	"github.com/kelchm/paperboy/internal/provider/freedomforum"
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/catalog"
+	"github.com/kelchm/broadsheet/internal/provider/freedomforum"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 // Decode instantiates a typed provider from its stored representation. This is

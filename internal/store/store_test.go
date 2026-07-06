@@ -9,7 +9,7 @@ import (
 
 func open(t *testing.T) *Store {
 	t.Helper()
-	s, err := Open(filepath.Join(t.TempDir(), "paperboy.db"))
+	s, err := Open(filepath.Join(t.TempDir(), "broadsheet.db"))
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -19,7 +19,7 @@ func open(t *testing.T) *Store {
 
 func TestOpen_MigratesAndReopens(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "paperboy.db")
+	path := filepath.Join(dir, "broadsheet.db")
 	s, err := Open(path)
 	if err != nil {
 		t.Fatalf("Open: %v", err)

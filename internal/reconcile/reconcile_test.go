@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kelchm/paperboy/internal/archive"
-	"github.com/kelchm/paperboy/internal/cache"
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/archive"
+	"github.com/kelchm/broadsheet/internal/cache"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 type fakeProvider struct {

@@ -1,4 +1,4 @@
-package paperboy
+package broadsheet
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 
 	"github.com/disintegration/imaging"
 
-	"github.com/kelchm/paperboy/internal/archive"
-	"github.com/kelchm/paperboy/internal/catalog"
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/archive"
+	"github.com/kelchm/broadsheet/internal/catalog"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 func TestMemCursors_AdvancePerDevice(t *testing.T) {
@@ -79,9 +79,9 @@ func uniformPNG(t *testing.T, w, h int, level uint8) []byte {
 	return buf.Bytes()
 }
 
-// newTestPaperboy builds an engine over a temp DataDir with one MediaImage
+// newTestEngine builds an engine over a temp DataDir with one MediaImage
 // edition archived for source "a". Providers are nil: these tests never poll.
-func newTestPaperboy(t *testing.T, width int, srcIDs ...string) (*Paperboy, *archive.Store, time.Time) {
+func newTestEngine(t *testing.T, width int, srcIDs ...string) (*Engine, *archive.Store, time.Time) {
 	t.Helper()
 	dir := t.TempDir()
 	date := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
@@ -105,7 +105,7 @@ func newTestPaperboy(t *testing.T, width int, srcIDs ...string) (*Paperboy, *arc
 }
 
 func TestServe_CacheInvalidatesOnArchiveOverwrite(t *testing.T) {
-	p, arch, date := newTestPaperboy(t, 64, "a")
+	p, arch, date := newTestEngine(t, 64, "a")
 
 	res, err := p.RenderFor(context.Background(), "a")
 	if err != nil {
@@ -138,7 +138,7 @@ func TestServe_CacheInvalidatesOnArchiveOverwrite(t *testing.T) {
 }
 
 func TestServe_CacheKeyIncludesMasterWidth(t *testing.T) {
-	p, _, _ := newTestPaperboy(t, 64, "a")
+	p, _, _ := newTestEngine(t, 64, "a")
 	if _, err := p.RenderFor(context.Background(), "a"); err != nil {
 		t.Fatalf("RenderFor: %v", err)
 	}
@@ -184,9 +184,9 @@ func (f *fakeRasterizer) Rasterize(ctx context.Context, _, pngPath string, width
 	return imaging.Save(imaging.New(width, width, color.NRGBA{R: 128, G: 128, B: 128, A: 255}), pngPath)
 }
 
-// newPDFTestPaperboy archives one MediaPDF edition for source "a" and swaps in
+// newPDFTestEngine archives one MediaPDF edition for source "a" and swaps in
 // the given fake rasterizer.
-func newPDFTestPaperboy(t *testing.T, fake *fakeRasterizer) *Paperboy {
+func newPDFTestEngine(t *testing.T, fake *fakeRasterizer) *Engine {
 	t.Helper()
 	dir := t.TempDir()
 	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
@@ -206,7 +206,7 @@ func newPDFTestPaperboy(t *testing.T, fake *fakeRasterizer) *Paperboy {
 
 func TestServe_SingleflightCollapsesConcurrentRenders(t *testing.T) {
 	fake := &fakeRasterizer{delay: 150 * time.Millisecond}
-	p := newPDFTestPaperboy(t, fake)
+	p := newPDFTestEngine(t, fake)
 
 	const n = 5
 	errs := make([]error, n)
@@ -237,7 +237,7 @@ func TestServe_RenderDetachedFromCallerContext(t *testing.T) {
 	// cache-fill render: the flight's result serves other waiters and the
 	// cache. The render runs under a detached, self-bounded context.
 	fake := &fakeRasterizer{}
-	p := newPDFTestPaperboy(t, fake)
+	p := newPDFTestEngine(t, fake)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -285,7 +285,7 @@ func TestNew_SeedsCatalogAndLoadsDefaults(t *testing.T) {
 	if ids["usat"] {
 		t.Error("non-default usat must not be enabled on a fresh install")
 	}
-	if _, err := os.Stat(filepath.Join(dir, "paperboy.db")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "broadsheet.db")); err != nil {
 		t.Errorf("store file not created: %v", err)
 	}
 

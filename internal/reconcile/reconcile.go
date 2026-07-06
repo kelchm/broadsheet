@@ -1,8 +1,8 @@
-// Package reconcile is paperboy's eager background loop: it keeps the local
+// Package reconcile is broadsheet's eager background loop: it keeps the local
 // archive current by polling each source's provider, storing new editions, and
 // pruning old ones — independent of any incoming HTTP request.
 //
-// This is the only part of paperboy that touches the network. Everything the
+// This is the only part of broadsheet that touches the network. Everything the
 // HTTP layer does is a pure read over the archive the reconciler maintains.
 package reconcile
 
@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kelchm/paperboy/internal/archive"
-	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/broadsheet/internal/archive"
+	"github.com/kelchm/broadsheet/internal/source"
 )
 
 // StateStore is what the reconciler needs from persistent state: provider

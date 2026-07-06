@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Source is a paper paperboy serves.
+// Source is a paper broadsheet serves.
 type Source struct {
 	ID          string
 	DisplayName string

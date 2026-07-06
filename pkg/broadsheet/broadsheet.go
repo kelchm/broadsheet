@@ -1,6 +1,6 @@
-// Package paperboy is the public Go API for the paperboy newspaper renderer.
+// Package broadsheet is the public Go API for the broadsheet newspaper renderer.
 //
-// Most people will just run paperboy-server or hit its HTTP endpoints. This
+// Most people will just run broadsheet-server or hit its HTTP endpoints. This
 // package is for embedding the engine in another Go program — say, a custom
 // TRMNL plugin or a Home Assistant integration.
 //
@@ -11,12 +11,12 @@
 //
 // Basic usage:
 //
-//	p, err := paperboy.New(paperboy.Config{DataDir: "./data"})
+//	p, err := broadsheet.New(broadsheet.Config{DataDir: "./data"})
 //	if err != nil { ... }
 //	p.StartReconciler(ctx)         // begin mirroring upstream in the background
 //	res, err := p.RenderCurrent(ctx)
 //	// res.Image is PNG bytes
-package paperboy
+package broadsheet
 
 import (
 	"bytes"
@@ -39,15 +39,15 @@ import (
 	"github.com/disintegration/imaging"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/kelchm/paperboy/internal/archive"
-	"github.com/kelchm/paperboy/internal/buildinfo"
-	"github.com/kelchm/paperboy/internal/cache"
-	"github.com/kelchm/paperboy/internal/catalog"
-	"github.com/kelchm/paperboy/internal/reconcile"
-	"github.com/kelchm/paperboy/internal/registry"
-	"github.com/kelchm/paperboy/internal/render"
-	"github.com/kelchm/paperboy/internal/source"
-	"github.com/kelchm/paperboy/internal/store"
+	"github.com/kelchm/broadsheet/internal/archive"
+	"github.com/kelchm/broadsheet/internal/buildinfo"
+	"github.com/kelchm/broadsheet/internal/cache"
+	"github.com/kelchm/broadsheet/internal/catalog"
+	"github.com/kelchm/broadsheet/internal/reconcile"
+	"github.com/kelchm/broadsheet/internal/registry"
+	"github.com/kelchm/broadsheet/internal/render"
+	"github.com/kelchm/broadsheet/internal/source"
+	"github.com/kelchm/broadsheet/internal/store"
 )
 
 // Source describes a newspaper feed. Alias of the internal canonical type.
@@ -57,19 +57,19 @@ type Source = source.Source
 // internal canonical type.
 type CropHints = source.CropHints
 
-// Version reports the paperboy release version.
+// Version reports the broadsheet release version.
 func Version() string { return buildinfo.Version }
 
 // ErrNoneAvailable is returned when nothing has been archived yet (cold start).
-var ErrNoneAvailable = errors.New("paperboy: no editions available yet")
+var ErrNoneAvailable = errors.New("broadsheet: no editions available yet")
 
 // ErrUnknownSource is returned when a source ID isn't configured — a caller
 // error (HTTP 404-shaped), distinct from server-side render failures.
-var ErrUnknownSource = errors.New("paperboy: unknown source")
+var ErrUnknownSource = errors.New("broadsheet: unknown source")
 
 // ErrEditionNotFound is returned for a dated edition that is permanently
 // absent (pruned, or never published) — 404-shaped, never retryable.
-var ErrEditionNotFound = errors.New("paperboy: edition not found")
+var ErrEditionNotFound = errors.New("broadsheet: edition not found")
 
 const (
 	defaultWidth       = 1600
@@ -127,9 +127,9 @@ const (
 	FitCover FitMode = "cover"
 )
 
-// Config holds runtime configuration for a Paperboy instance.
+// Config holds runtime configuration for a Engine instance.
 type Config struct {
-	// DataDir is where the archive, render cache, and paperboy.db live. Required.
+	// DataDir is where the archive, render cache, and broadsheet.db live. Required.
 	DataDir string
 
 	// Width is the master render width in pixels (quality ceiling). Default 1600.
@@ -211,8 +211,8 @@ type SourceHealth struct {
 	LastError      string
 }
 
-// Paperboy is the engine. Construct one with New. Safe for concurrent use.
-type Paperboy struct {
+// Engine is the engine. Construct one with New. Safe for concurrent use.
+type Engine struct {
 	cfg        Config
 	archive    *archive.Store
 	renderer   *render.Renderer
@@ -236,10 +236,10 @@ type Paperboy struct {
 	renderSF singleflight.Group
 }
 
-// New constructs a Paperboy with the given config.
-func New(cfg Config) (*Paperboy, error) {
+// New constructs a Engine with the given config.
+func New(cfg Config) (*Engine, error) {
 	if cfg.DataDir == "" {
-		return nil, fmt.Errorf("paperboy: DataDir is required")
+		return nil, fmt.Errorf("broadsheet: DataDir is required")
 	}
 	if cfg.Width == 0 {
 		cfg.Width = defaultWidth
@@ -262,13 +262,27 @@ func New(cfg Config) (*Paperboy, error) {
 	cacheDir := filepath.Join(cfg.DataDir, "cache")
 	for _, d := range []string{archiveDir, cacheDir} {
 		if err := os.MkdirAll(d, 0o750); err != nil {
-			return nil, fmt.Errorf("paperboy: create %s: %w", d, err)
+			return nil, fmt.Errorf("broadsheet: create %s: %w", d, err)
 		}
 	}
 
-	st, err := store.Open(filepath.Join(cfg.DataDir, "paperboy.db"))
+	// A pre-rename deployment's database moves over automatically — once,
+	// before the store opens it (WAL sidecars included).
+	dbPath := filepath.Join(cfg.DataDir, "broadsheet.db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(cfg.DataDir, "paperboy.db")); err == nil {
+			for _, ext := range []string{"", "-wal", "-shm"} {
+				old := filepath.Join(cfg.DataDir, "paperboy.db"+ext)
+				if _, err := os.Stat(old); err == nil {
+					_ = os.Rename(old, dbPath+ext)
+				}
+			}
+			cfg.Logger.Info("renamed legacy paperboy.db to broadsheet.db")
+		}
+	}
+	st, err := store.Open(dbPath)
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: open store: %w", err)
+		return nil, fmt.Errorf("broadsheet: open store: %w", err)
 	}
 	importLegacyState(st, filepath.Join(cfg.DataDir, "state.json"), cfg.Logger)
 
@@ -282,7 +296,7 @@ func New(cfg Config) (*Paperboy, error) {
 	}
 
 	arch := &archive.Store{Root: archiveDir}
-	p := &Paperboy{
+	p := &Engine{
 		cfg:      cfg,
 		sources:  srcs,
 		archive:  arch,
@@ -306,7 +320,7 @@ func New(cfg Config) (*Paperboy, error) {
 }
 
 // getSources returns the active source set (an immutable snapshot).
-func (p *Paperboy) getSources() []source.Source {
+func (p *Engine) getSources() []source.Source {
 	p.srcMu.RLock()
 	defer p.srcMu.RUnlock()
 	return p.sources
@@ -316,7 +330,7 @@ func (p *Paperboy) getSources() []source.Source {
 // no-op for engines constructed with explicit Config.Sources. An empty enabled
 // set is legal (the user can disable everything; devices get 4xx/503 until
 // something is enabled again).
-func (p *Paperboy) ReloadSources() error {
+func (p *Engine) ReloadSources() error {
 	if p.cfg.Sources != nil {
 		return nil
 	}
@@ -325,7 +339,7 @@ func (p *Paperboy) ReloadSources() error {
 	return p.reloadLocked()
 }
 
-func (p *Paperboy) reloadLocked() error {
+func (p *Engine) reloadLocked() error {
 	srcs, err := loadEnabled(p.store, p.cfg.Logger)
 	if err != nil {
 		return err
@@ -338,14 +352,14 @@ func (p *Paperboy) reloadLocked() error {
 
 // SetSourceEnabled flips a catalog source in or out of the enabled set and
 // applies it immediately (rotation next request, polling next cycle).
-func (p *Paperboy) SetSourceEnabled(sourceID string, enabled bool) error {
+func (p *Engine) SetSourceEnabled(sourceID string, enabled bool) error {
 	p.reloadMu.Lock()
 	defer p.reloadMu.Unlock()
 	if err := p.store.SetSourceEnabled(sourceID, enabled); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 		}
-		return fmt.Errorf("paperboy: set enabled: %w", err)
+		return fmt.Errorf("broadsheet: set enabled: %w", err)
 	}
 	if p.cfg.Sources != nil {
 		return nil
@@ -363,10 +377,10 @@ type CatalogEntry struct {
 
 // Catalog returns every known paper (the full store catalog) with enabled
 // flags, in position order.
-func (p *Paperboy) Catalog() ([]CatalogEntry, error) {
+func (p *Engine) Catalog() ([]CatalogEntry, error) {
 	rows, err := p.store.ListSources(false)
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: catalog: %w", err)
+		return nil, fmt.Errorf("broadsheet: catalog: %w", err)
 	}
 	loc := map[string]string{}
 	if entries, err := catalog.All(); err == nil {
@@ -386,7 +400,7 @@ func (p *Paperboy) Catalog() ([]CatalogEntry, error) {
 // ListEditions returns the archived edition dates for a source, oldest first.
 // Disabled catalog papers remain addressable — their history outlives the
 // toggle. Same-day duplicates (media-type changes on re-post) are collapsed.
-func (p *Paperboy) ListEditions(sourceID string) ([]time.Time, error) {
+func (p *Engine) ListEditions(sourceID string) ([]time.Time, error) {
 	if !p.knownSource(sourceID) {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 	}
@@ -403,7 +417,7 @@ func (p *Paperboy) ListEditions(sourceID string) ([]time.Time, error) {
 }
 
 // RenderEdition renders a specific archived edition of a source.
-func (p *Paperboy) RenderEdition(ctx context.Context, sourceID string, date time.Time, opts ...RenderOptions) (*Result, error) {
+func (p *Engine) RenderEdition(ctx context.Context, sourceID string, date time.Time, opts ...RenderOptions) (*Result, error) {
 	if !p.knownSource(sourceID) {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 	}
@@ -424,7 +438,7 @@ func (p *Paperboy) RenderEdition(ctx context.Context, sourceID string, date time
 func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) {
 	entries, err := catalog.All()
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: load catalog: %w", err)
+		return nil, fmt.Errorf("broadsheet: load catalog: %w", err)
 	}
 	rows := make([]store.SourceRow, 0, len(entries))
 	for i, e := range entries {
@@ -435,7 +449,7 @@ func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 		})
 	}
 	if err := st.SeedSources(rows); err != nil {
-		return nil, fmt.Errorf("paperboy: seed sources: %w", err)
+		return nil, fmt.Errorf("broadsheet: seed sources: %w", err)
 	}
 	return loadEnabled(st, logger)
 }
@@ -446,7 +460,7 @@ func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 func loadEnabled(st *store.Store, logger *slog.Logger) ([]source.Source, error) {
 	stored, err := st.ListSources(true)
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: list sources: %w", err)
+		return nil, fmt.Errorf("broadsheet: list sources: %w", err)
 	}
 	out := make([]source.Source, 0, len(stored))
 	for _, r := range stored {
@@ -458,7 +472,7 @@ func loadEnabled(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 		out = append(out, s)
 	}
 	if len(out) == 0 && len(stored) > 0 {
-		return nil, fmt.Errorf("paperboy: none of the %d enabled sources decoded (version skew? check the warnings above)", len(stored))
+		return nil, fmt.Errorf("broadsheet: none of the %d enabled sources decoded (version skew? check the warnings above)", len(stored))
 	}
 	return out, nil
 }
@@ -467,7 +481,7 @@ func loadEnabled(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 // store-backed engines) anywhere in the catalog. Editions/refresh endpoints
 // must address disabled papers too: the API advertises the full catalog, and
 // the archive keeps serving a paper's history after it's toggled off.
-func (p *Paperboy) knownSource(id string) bool {
+func (p *Engine) knownSource(id string) bool {
 	if source.ByID(p.getSources(), id) != nil {
 		return true
 	}
@@ -532,23 +546,23 @@ func importLegacyState(st *store.Store, path string, logger *slog.Logger) {
 // handle). Call it when done with an engine constructed by New; the server
 // does so on shutdown, and embedders constructing engines dynamically must
 // too. Render/read calls must not race Close.
-func (p *Paperboy) Close() error {
+func (p *Engine) Close() error {
 	return p.store.Close()
 }
 
 // StartReconciler launches the background mirror loop in its own goroutine. It
 // reconciles immediately, then every PollInterval, until ctx is canceled.
-func (p *Paperboy) StartReconciler(ctx context.Context) {
+func (p *Engine) StartReconciler(ctx context.Context) {
 	go p.reconciler.Run(ctx)
 }
 
 // Poll runs a single reconcile pass across all sources synchronously.
-func (p *Paperboy) Poll(ctx context.Context) {
+func (p *Engine) Poll(ctx context.Context) {
 	p.reconciler.ReconcileOnce(ctx)
 }
 
 // Refresh polls a single source synchronously and archives any new edition.
-func (p *Paperboy) Refresh(ctx context.Context, sourceID string) error {
+func (p *Engine) Refresh(ctx context.Context, sourceID string) error {
 	src := source.ByID(p.getSources(), sourceID)
 	if src == nil && p.cfg.Sources == nil {
 		// Disabled catalog papers are refreshable too (fetch-then-preview
@@ -577,7 +591,7 @@ func (p *Paperboy) Refresh(ctx context.Context, sourceID string) error {
 // The device's own refresh cadence sets the pace; there is no server-side rotate
 // clock. Falls back to the newest archived edition of any source if the selected
 // source has none yet.
-func (p *Paperboy) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*Result, error) {
+func (p *Engine) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*Result, error) {
 	o := optsOrDefault(opts)
 	srcs := p.getSources()
 	if len(o.Sources) > 0 {
@@ -598,7 +612,7 @@ func (p *Paperboy) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*R
 }
 
 // RenderFor returns the newest archived edition for a specific source.
-func (p *Paperboy) RenderFor(ctx context.Context, sourceID string, opts ...RenderOptions) (*Result, error) {
+func (p *Engine) RenderFor(ctx context.Context, sourceID string, opts ...RenderOptions) (*Result, error) {
 	if source.ByID(p.getSources(), sourceID) == nil {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 	}
@@ -611,9 +625,9 @@ func (p *Paperboy) RenderFor(ctx context.Context, sourceID string, opts ...Rende
 	return p.serve(ctx, entry, false, optsOrDefault(opts))
 }
 
-func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, opts RenderOptions) (*Result, error) {
+func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opts RenderOptions) (*Result, error) {
 	master := WidthMaster(p.cfg)
-	// The cache key carries the master width so a PAPERBOY_WIDTH change never
+	// The cache key carries the master width so a BROADSHEET_WIDTH change never
 	// serves old-width masters; freshness against the archived artifact handles
 	// re-posted (corrected) editions.
 	pngPath := filepath.Join(p.cacheDir, entry.SourceID,
@@ -647,7 +661,7 @@ func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, o
 			}
 			return nil, nil
 		}); err != nil {
-			return nil, fmt.Errorf("paperboy: render: %w", err)
+			return nil, fmt.Errorf("broadsheet: render: %w", err)
 		}
 	}
 
@@ -658,21 +672,21 @@ func (p *Paperboy) serve(ctx context.Context, entry archive.Entry, stale bool, o
 	// an old body under a new ETag behind 304s).
 	pngInfo, err := os.Stat(pngPath)
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: stat render: %w", err)
+		return nil, fmt.Errorf("broadsheet: stat render: %w", err)
 	}
 	data, err := os.ReadFile(pngPath) //nolint:gosec // G304: internal cache path from a validated source entry, not user input
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: read render: %w", err)
+		return nil, fmt.Errorf("broadsheet: read render: %w", err)
 	}
 	page, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: decode render: %w", err)
+		return nil, fmt.Errorf("broadsheet: decode render: %w", err)
 	}
 
 	out := compose(page, opts, master)
 	var buf bytes.Buffer
 	if err := imaging.Encode(&buf, out, imaging.PNG); err != nil {
-		return nil, fmt.Errorf("paperboy: encode: %w", err)
+		return nil, fmt.Errorf("broadsheet: encode: %w", err)
 	}
 
 	daysOld := int(p.now().UTC().Sub(entry.Date).Hours()) / 24
@@ -785,7 +799,7 @@ func optsOrDefault(opts []RenderOptions) RenderOptions {
 }
 
 // ListSources returns the configured sources.
-func (p *Paperboy) ListSources() []Source {
+func (p *Engine) ListSources() []Source {
 	srcs := p.getSources()
 	out := make([]Source, len(srcs))
 	copy(out, srcs)
@@ -793,13 +807,13 @@ func (p *Paperboy) ListSources() []Source {
 }
 
 // Ready reports whether at least one usable edition has been archived.
-func (p *Paperboy) Ready() bool {
+func (p *Engine) Ready() bool {
 	_, ok := p.archive.NewestAny()
 	return ok
 }
 
 // HealthSnapshot returns the current per-source health.
-func (p *Paperboy) HealthSnapshot() Health {
+func (p *Engine) HealthSnapshot() Health {
 	snap, err := p.store.HealthSnapshot()
 	if err != nil {
 		p.cfg.Logger.Warn("health snapshot failed", "err", err)

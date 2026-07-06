@@ -16,9 +16,9 @@ import (
 
 	"github.com/disintegration/imaging"
 
-	"github.com/kelchm/paperboy/internal/archive"
-	"github.com/kelchm/paperboy/internal/source"
-	"github.com/kelchm/paperboy/pkg/paperboy"
+	"github.com/kelchm/broadsheet/internal/archive"
+	"github.com/kelchm/broadsheet/internal/source"
+	"github.com/kelchm/broadsheet/pkg/broadsheet"
 )
 
 // newTestServer builds the real router over an engine with a temp DataDir.
@@ -41,16 +41,16 @@ func newTestServer(t *testing.T) *httptest.Server {
 		t.Fatalf("archive.Put: %v", err)
 	}
 
-	p, err := paperboy.New(paperboy.Config{
+	p, err := broadsheet.New(broadsheet.Config{
 		DataDir: dir,
 		Width:   64,
-		Sources: []paperboy.Source{
+		Sources: []broadsheet.Source{
 			{ID: "a", DisplayName: "Paper A"},
 			{ID: "b", DisplayName: "Paper B"},
 		},
 	})
 	if err != nil {
-		t.Fatalf("paperboy.New: %v", err)
+		t.Fatalf("broadsheet.New: %v", err)
 	}
 
 	srv := httptest.NewServer(newRouter(p, slog.New(slog.DiscardHandler), ""))
@@ -88,15 +88,15 @@ func TestPaper_ServesImageWithHeaders(t *testing.T) {
 	if ct := resp.Header.Get("Content-Type"); ct != "image/png" {
 		t.Errorf("Content-Type = %q, want image/png", ct)
 	}
-	if got := resp.Header.Get("X-Paperboy-Source"); got != "a" {
-		t.Errorf("X-Paperboy-Source = %q, want a", got)
+	if got := resp.Header.Get("X-Engine-Source"); got != "a" {
+		t.Errorf("X-Engine-Source = %q, want a", got)
 	}
-	for _, h := range []string{"X-Paperboy-Width", "X-Paperboy-Height", "X-Paperboy-Days-Old"} {
+	for _, h := range []string{"X-Engine-Width", "X-Engine-Height", "X-Engine-Days-Old"} {
 		if resp.Header.Get(h) == "" {
 			t.Errorf("missing header %s", h)
 		}
 	}
-	if resp.Header.Get("X-Paperboy-Stale") != "" {
+	if resp.Header.Get("X-Engine-Stale") != "" {
 		t.Error("direct /paper read must never be marked stale")
 	}
 }
@@ -111,7 +111,7 @@ func TestPaper_UnknownSourceIs404(t *testing.T) {
 // TestCurrent_AdvancesPerDevice characterizes the shipped advance-on-GET
 // rotation contract: each load moves a device to the next source, devices are
 // independent, and a source with nothing archived serves the cross-source
-// fallback with X-Paperboy-Stale.
+// fallback with X-Engine-Stale.
 func TestCurrent_AdvancesPerDevice(t *testing.T) {
 	srv := newTestServer(t)
 
@@ -122,8 +122,8 @@ func TestCurrent_AdvancesPerDevice(t *testing.T) {
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("/current.png = %d, want 200", resp.StatusCode)
 			}
-			s := resp.Header.Get("X-Paperboy-Source")
-			if resp.Header.Get("X-Paperboy-Stale") == "true" {
+			s := resp.Header.Get("X-Engine-Source")
+			if resp.Header.Get("X-Engine-Stale") == "true" {
 				s += ":stale"
 			}
 			out = append(out, s)
@@ -151,7 +151,7 @@ func TestCurrent_SourcesFilterRestrictsRotation(t *testing.T) {
 	srv := newTestServer(t)
 	for i := range 3 {
 		resp := get(t, srv.URL+"/current.png?device=d&sources=a")
-		if got := resp.Header.Get("X-Paperboy-Source"); got != "a" {
+		if got := resp.Header.Get("X-Engine-Source"); got != "a" {
 			t.Fatalf("load %d: source = %q, want pinned to a", i, got)
 		}
 	}
@@ -209,16 +209,16 @@ func TestRotationPNG_IdempotentWithCachingHeaders(t *testing.T) {
 	if cc := resp.Header.Get("Cache-Control"); !strings.HasPrefix(cc, "public, max-age=") {
 		t.Errorf("Cache-Control = %q, want public, max-age=<to boundary>", cc)
 	}
-	if next := resp.Header.Get("X-Paperboy-Next-Change"); next == "" {
-		t.Error("missing X-Paperboy-Next-Change refresh hint")
+	if next := resp.Header.Get("X-Engine-Next-Change"); next == "" {
+		t.Error("missing X-Engine-Next-Change refresh hint")
 	}
-	if resp.Header.Get("X-Paperboy-Slot") == "" {
-		t.Error("missing X-Paperboy-Slot")
+	if resp.Header.Get("X-Engine-Slot") == "" {
+		t.Error("missing X-Engine-Slot")
 	}
 
 	// Idempotent: a second fetch at the same instant serves the same source.
 	resp2 := get(t, srv.URL+"/rotation.png?interval=1h")
-	if a, b := resp.Header.Get("X-Paperboy-Source"), resp2.Header.Get("X-Paperboy-Source"); a != b {
+	if a, b := resp.Header.Get("X-Engine-Source"), resp2.Header.Get("X-Engine-Source"); a != b {
 		t.Errorf("two reads changed the answer: %q then %q — rotation reads must not mutate", a, b)
 	}
 
@@ -240,21 +240,21 @@ func TestRotationPNG_ExplicitSlotAndSubstitution(t *testing.T) {
 
 	// slot=0 selects a directly.
 	resp := get(t, srv.URL+"/rotation.png?slot=0")
-	if got := resp.Header.Get("X-Paperboy-Source"); got != "a" {
+	if got := resp.Header.Get("X-Engine-Source"); got != "a" {
 		t.Errorf("slot=0 source = %q, want a", got)
 	}
-	if resp.Header.Get("X-Paperboy-Stale") != "" {
+	if resp.Header.Get("X-Engine-Stale") != "" {
 		t.Error("direct slot must not be substituted")
 	}
 
 	// slot=1 selects b, which has nothing archived: deterministic substitution
 	// to a, marked stale.
 	resp = get(t, srv.URL+"/rotation.png?slot=1")
-	if got := resp.Header.Get("X-Paperboy-Source"); got != "a" {
+	if got := resp.Header.Get("X-Engine-Source"); got != "a" {
 		t.Errorf("slot=1 source = %q, want substituted a", got)
 	}
-	if resp.Header.Get("X-Paperboy-Stale") != "true" {
-		t.Error("substituted slot must carry X-Paperboy-Stale")
+	if resp.Header.Get("X-Engine-Stale") != "true" {
+		t.Error("substituted slot must carry X-Engine-Stale")
 	}
 }
 
@@ -434,9 +434,9 @@ func newStoreBackedServer(t *testing.T, adminToken string) *httptest.Server {
 		t.Fatalf("archive.Put: %v", err)
 	}
 
-	p, err := paperboy.New(paperboy.Config{DataDir: dir, Width: 64})
+	p, err := broadsheet.New(broadsheet.Config{DataDir: dir, Width: 64})
 	if err != nil {
-		t.Fatalf("paperboy.New: %v", err)
+		t.Fatalf("broadsheet.New: %v", err)
 	}
 	t.Cleanup(func() { _ = p.Close() })
 	srv := httptest.NewServer(newRouter(p, slog.New(slog.DiscardHandler), adminToken))

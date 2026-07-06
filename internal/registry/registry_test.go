@@ -3,7 +3,7 @@ package registry
 import (
 	"testing"
 
-	"github.com/kelchm/paperboy/internal/catalog"
+	"github.com/kelchm/broadsheet/internal/catalog"
 )
 
 func TestDefaultNonEmpty(t *testing.T) {

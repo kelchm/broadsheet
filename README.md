@@ -1,4 +1,4 @@
-# paperboy
+# broadsheet
 
 Fetches newspaper front pages and rotates them on a display.
 
@@ -15,7 +15,7 @@ There's a longer write-up in [docs/architecture.md](docs/architecture.md).
 ## Quick start
 
 ```sh
-git clone git@github.com:kelchm/paperboy.git && cd paperboy
+git clone git@github.com:kelchm/broadsheet.git && cd broadsheet
 
 # native (macOS) — fastest dev loop. You just need a C compiler; cgo links the
 # MuPDF that ships bundled with go-fitz, and nothing else.
@@ -35,8 +35,8 @@ Fetching and serving are separate. A background loop mirrors upstream into a loc
 
 ```
 cmd/
-  paperboy/          CLI (debug: fetch, list, health)
-  paperboy-server/   the HTTP server
+  broadsheet/          CLI (debug: fetch, list, health)
+  broadsheet-server/   the HTTP server
 internal/            not importable from outside
   source/              the core contracts: Source, Provider, Edition
   provider/            upstream drivers (freedomforum/ is the first)
@@ -45,15 +45,15 @@ internal/            not importable from outside
   archive/             durable PDF store, keyed by edition date
   render/              archived artifact -> master-width PNG
   rasterize/           PDF -> image (go-fitz / MuPDF)
-  store/               paperboy.db (SQLite): sources, ETags, health history
+  store/               broadsheet.db (SQLite): sources, ETags, health history
   catalog/             embedded list of known papers (seeds the store)
   cache/               legacy state.json reader (one-time import)
-pkg/paperboy/        the public API, for embedding
+pkg/broadsheet/        the public API, for embedding
 docker/              production Dockerfile + compose
 .devcontainer/       VS Code dev container
 ```
 
-### The background loop (every `PAPERBOY_POLL_INTERVAL`)
+### The background loop (every `BROADSHEET_POLL_INTERVAL`)
 
 ```
 for each source:
@@ -61,7 +61,7 @@ for each source:
                        hold a current edition (UTC yesterday/today/tomorrow)
     304 = unchanged    404 = nothing there    200 = a new edition
   archive anything new (filed under its Last-Modified date)
-  prune editions older than PAPERBOY_ARCHIVE_DAYS
+  prune editions older than BROADSHEET_ARCHIVE_DAYS
 ```
 
 ### Serving a request (no network)
@@ -71,7 +71,7 @@ GET /rotation.png?sources=ny-nyt,wsj&interval=30m
   slot    = floor(now / interval) + phase     # pure function of the clock
   source  = sources[ slot mod len(sources) ]
        |  (nothing archived for it yet)
-       -> next source that has content, with X-Paperboy-Stale: true
+       -> next source that has content, with X-Broadsheet-Stale: true
        |  (archive is completely empty — cold start only)
        -> 503
   render, frame, respond with ETag + max-age until the next slot
@@ -91,19 +91,19 @@ idempotent read: previews, proxies, monitors, and curl can't perturb a display.
 | `GET /paper/{id}.png` | The newest archived edition for one source. `ETag`'d pure read. |
 | `GET /paper/{id}/{date}.png` | A specific archived edition (`YYYYMMDD`). |
 | `GET /sources` | JSON: the configured sources and their health. |
-| `/api/v1/…` | The management plane: `GET /status`, `GET /sources` (full catalog + enabled flags + health), `PATCH /sources/{id}` (`{"enabled": bool}` — applies live), `POST /sources/{id}/refresh`, `GET /sources/{id}/editions`. Mutations honor `PAPERBOY_ADMIN_TOKEN` when set. |
+| `/api/v1/…` | The management plane: `GET /status`, `GET /sources` (full catalog + enabled flags + health), `PATCH /sources/{id}` (`{"enabled": bool}` — applies live), `POST /sources/{id}/refresh`, `GET /sources/{id}/editions`. Mutations honor `BROADSHEET_ADMIN_TOKEN` when set. |
 | `GET /health` | Liveness — 200 as long as the process is up. |
 | `GET /healthz` | Readiness — 200 once there's at least one edition archived. |
 | `GET /`, `GET /current.png` | **Deprecated** advance-on-GET rotation; use `/rotation` / `/rotation.png`. Removed before 1.0. |
 
-The image endpoints take framing params: `?w=` / `?h=` (target size), `?fit=contain\|cover`, `?margin=<pct>`. The rotation endpoints take `?sources=<ids>` (subset + order), `?interval=<dur>` (dwell per paper, default 30m), `?phase=<n>` (offset a display within the same playlist), `?slot=<n>` (pin an exact slot). Every response carries `X-Paperboy-Source`, `-Width`, `-Height`, `-Days-Old`; rotation responses add `X-Paperboy-Slot` and `X-Paperboy-Next-Change`, plus `X-Paperboy-Stale: true` if an empty source was substituted.
+The image endpoints take framing params: `?w=` / `?h=` (target size), `?fit=contain\|cover`, `?margin=<pct>`. The rotation endpoints take `?sources=<ids>` (subset + order), `?interval=<dur>` (dwell per paper, default 30m), `?phase=<n>` (offset a display within the same playlist), `?slot=<n>` (pin an exact slot). Every response carries `X-Broadsheet-Source`, `-Width`, `-Height`, `-Days-Old`; rotation responses add `X-Broadsheet-Slot` and `X-Broadsheet-Next-Change`, plus `X-Broadsheet-Stale: true` if an empty source was substituted.
 
 ## Displays
 
-All per-display configuration lives in the URL you provision on the device — there are no display records to manage in paperboy. Three ways to drive a screen:
+All per-display configuration lives in the URL you provision on the device — there are no display records to manage in broadsheet. Three ways to drive a screen:
 
 - **It renders HTML** (Visionect is literally an HTML rendering engine; also browsers, dashboards) → point it at `GET /rotation?sources=…&interval=30m`. The page fits any screen with no per-device setup (`?fit=cover`, `?margin=<n>` to tune), advances itself exactly at slot boundaries, and — on Visionect — feature-detects the okular API and sleeps the panel until the next boundary (`?sleep=off` to disable). **Set VSS "Automatic page reload" to 0**; the page paces itself, and a reload timer pointed at a bare image URL will silently skip papers whenever it ticks slower than the interval.
-- **It pulls a raw image** (fixed-resolution panels, Home Assistant, …) → point it at `/rotation.png?sources=…&interval=30m&w=<W>&h=<H>`. Fetch at least as often as the interval; the `ETag`/`304` makes redundant fetches nearly free, and `X-Paperboy-Next-Change` says exactly how long to sleep.
+- **It pulls a raw image** (fixed-resolution panels, Home Assistant, …) → point it at `/rotation.png?sources=…&interval=30m&w=<W>&h=<H>`. Fetch at least as often as the interval; the `ETag`/`304` makes redundant fetches nearly free, and `X-Broadsheet-Next-Change` says exactly how long to sleep.
 - **It speaks TRMNL** → point it at `/api/display?sources=…&interval=30m&w=800&h=480`. The envelope's `refresh_rate` wakes the firmware at the next slot boundary (clamped to ≥60s). Caveat: the image is a grayscale PNG — fine for BYOS/custom clients and anything that renders PNGs, but **stock TRMNL firmware expects a 1-bit image**; that output format lands with the per-device dithering work.
 
 Displays sharing a playlist stay in sync automatically; give one `?phase=1` to deliberately show the next paper over. `/paper/{id}` never rotates anything — it's always just that paper.
@@ -112,7 +112,7 @@ Displays sharing a playlist stay in sync automatically; give one `?phase=1` to d
 
 The client picks the size, not the server. One instance might feed a 13" Visionect, a TRMNL, a browser tab, and a Home Assistant card, and they all want different widths — so it's a per-request thing.
 
-- `PAPERBOY_WIDTH` (default 1600) is the *master* width: what we rasterize and cache at. Treat it as the quality ceiling.
+- `BROADSHEET_WIDTH` (default 1600) is the *master* width: what we rasterize and cache at. Treat it as the quality ceiling.
 - `?w=<int>` resizes down from the master, per request. Aspect ratio's kept; height follows.
 - Ask for more than the master and you just get the master back — upscaling only softens the text.
 
@@ -125,16 +125,16 @@ curl http://localhost:8080/paper/ny-nyt.png?w=480 # a specific source, 480px wid
 ## Embedding
 
 ```go
-import "github.com/kelchm/paperboy/pkg/paperboy"
+import "github.com/kelchm/broadsheet/pkg/broadsheet"
 
-p, _ := paperboy.New(paperboy.Config{DataDir: "./data"})
+p, _ := broadsheet.New(broadsheet.Config{DataDir: "./data"})
 
 // Kick off the background mirror so the archive stays current. Without this the
 // engine is passive — it only serves what's already on disk.
 p.StartReconciler(ctx)
 
 res, err := p.RenderCurrent(ctx)                                           // master width
-res, err := p.RenderCurrent(ctx, paperboy.RenderOptions{OutputWidth: 800}) // resized
+res, err := p.RenderCurrent(ctx, broadsheet.RenderOptions{OutputWidth: 800}) // resized
 // res.Image is PNG bytes; res.Width / res.Height are the actual dimensions
 ```
 
@@ -144,19 +144,19 @@ Everything's an env var:
 
 | Var | Default | What it does |
 |---|---|---|
-| `PAPERBOY_PORT` | `8080` | HTTP port |
-| `PAPERBOY_DATA_DIR` | `./data` | Holds `archive/` (PDFs), `cache/` (PNGs), and `paperboy.db` |
-| `PAPERBOY_WIDTH` | `1600` | Master width — what we cache at. `?w=` resizes down from here. |
-| `PAPERBOY_POLL_INTERVAL` | `30m` | How often the background loop checks upstream |
-| `PAPERBOY_ARCHIVE_DAYS` | `14` | How many days of editions to keep |
-| `PAPERBOY_ADMIN_TOKEN` | *(unset)* | When set, mutating `/api/v1` calls require `Authorization: Bearer <token>`. Set it before exposing the server beyond a trusted network. |
-| `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
+| `BROADSHEET_PORT` | `8080` | HTTP port |
+| `BROADSHEET_DATA_DIR` | `./data` | Holds `archive/` (PDFs), `cache/` (PNGs), and `broadsheet.db` |
+| `BROADSHEET_WIDTH` | `1600` | Master width — what we cache at. `?w=` resizes down from here. |
+| `BROADSHEET_POLL_INTERVAL` | `30m` | How often the background loop checks upstream |
+| `BROADSHEET_ARCHIVE_DAYS` | `14` | How many days of editions to keep |
+| `BROADSHEET_ADMIN_TOKEN` | *(unset)* | When set, mutating `/api/v1` calls require `Authorization: Bearer <token>`. Set it before exposing the server beyond a trusted network. |
+| `BROADSHEET_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
 ## Sources
 
 Front pages come from [freedomforum.org](https://www.freedomforum.org/todaysfrontpages/)'s daily archive. The built-in list lives in [`internal/registry/registry.go`](internal/registry/registry.go) — a paper is a one-liner binding an ID to a provider (`FreedomForum{Prefix: …}`), where the prefix is the code from the Freedom Forum URL. A source on some other site gets a new [provider](internal/provider/).
 
-Worth knowing: Freedom Forum only keeps about two days live, so the archive fills in over time as paperboy runs. It can't go back and grab history that's already rolled off upstream.
+Worth knowing: Freedom Forum only keeps about two days live, so the archive fills in over time as broadsheet runs. It can't go back and grab history that's already rolled off upstream.
 
 ## Not done yet
 

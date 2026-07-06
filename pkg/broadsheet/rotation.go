@@ -1,4 +1,4 @@
-package paperboy
+package broadsheet
 
 // Stateless, time-driven rotation: which paper a rotation shows is a pure
 // function of the wall clock and the spec — no cursor, no per-device state,
@@ -21,7 +21,7 @@ import (
 
 // ErrNoSourcesMatch is returned when a rotation's Sources filter matches
 // nothing — a caller error, distinct from an empty archive.
-var ErrNoSourcesMatch = errors.New("paperboy: no sources match the request")
+var ErrNoSourcesMatch = errors.New("broadsheet: no sources match the request")
 
 // DefaultRotationInterval is the dwell per paper when a RotationSpec doesn't
 // set one.
@@ -72,7 +72,7 @@ func (s RotationSpec) interval() time.Duration {
 // deterministically advances to the next source that does — every client
 // makes the same substitution — and marks the result Substituted. With an
 // entirely empty archive it returns ErrNoneAvailable.
-func (p *Paperboy) ResolveRotation(spec RotationSpec) (Rotation, error) {
+func (p *Engine) ResolveRotation(spec RotationSpec) (Rotation, error) {
 	srcs := p.getSources()
 	if len(spec.Sources) > 0 {
 		srcs = filterSources(srcs, spec.Sources)
@@ -113,7 +113,7 @@ func (p *Paperboy) ResolveRotation(spec RotationSpec) (Rotation, error) {
 
 // NewestEdition reports the edition date of the newest archived edition for a
 // source, without rendering anything.
-func (p *Paperboy) NewestEdition(sourceID string) (time.Time, bool) {
+func (p *Engine) NewestEdition(sourceID string) (time.Time, bool) {
 	entry, ok := p.archive.Newest(sourceID)
 	if !ok {
 		return time.Time{}, false
@@ -124,7 +124,7 @@ func (p *Paperboy) NewestEdition(sourceID string) (time.Time, bool) {
 // RenderRotation resolves the rotation and renders the selected source's
 // newest edition. It is a pure read: calling it any number of times changes
 // nothing.
-func (p *Paperboy) RenderRotation(ctx context.Context, spec RotationSpec, opts RenderOptions) (*Result, Rotation, error) {
+func (p *Engine) RenderRotation(ctx context.Context, spec RotationSpec, opts RenderOptions) (*Result, Rotation, error) {
 	rot, err := p.ResolveRotation(spec)
 	if err != nil {
 		return nil, Rotation{}, err

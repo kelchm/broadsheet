@@ -1,5 +1,5 @@
 {
-  "name": "paperboy",
+  "name": "broadsheet",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
@@ -28,6 +28,6 @@
   "postCreateCommand": "go mod download",
   "remoteUser": "vscode",
   "mounts": [
-    "source=paperboy-go-modcache,target=/go/pkg/mod,type=volume"
+    "source=broadsheet-go-modcache,target=/go/pkg/mod,type=volume"
   ]
 }

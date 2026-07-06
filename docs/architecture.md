@@ -1,12 +1,12 @@
-# paperboy architecture
+# broadsheet architecture
 
-How paperboy works. Written alongside the 0.0.1 rework — the git history has the
+How broadsheet works. Written alongside the 0.0.1 rework — the git history has the
 blow-by-blow if you want it.
 
 ## The core idea
 
 Upstream isn't a smart API. freedomforum is basically a dumb CDN serving static
-PDFs at predictable URLs. So the useful way to think about paperboy is as a
+PDFs at predictable URLs. So the useful way to think about broadsheet is as a
 mirror: a background loop copies front pages into a local archive as they show
 up, and the HTTP side only ever reads from that archive.
 
@@ -36,11 +36,11 @@ is the one legacy exception until it's removed.)
 ## Storage layout
 
 ```
-<PAPERBOY_DATA_DIR>/
+<BROADSHEET_DATA_DIR>/
   archive/<source-id>/<YYYYMMDD>.pdf   # durable source of truth; kept N days
   cache/<source-id>/<YYYYMMDD>.w<W>.png # disposable master renders (keyed by
                                         # edition date + master width); evict anytime
-  paperboy.db                          # SQLite: source catalog/enabled set,
+  broadsheet.db                          # SQLite: source catalog/enabled set,
                                        # provider ETags, fetch-event history,
                                        # crop overrides
 ```
@@ -55,7 +55,7 @@ Two directories, very different lifetimes:
   cycle). Evict any PNG whenever you like and you've lost a few hundred
   milliseconds of re-render, nothing more. `rm -rf cache/` is always safe.
 
-`paperboy.db` holds the records a UI can eventually mutate: the catalog's
+`broadsheet.db` holds the records a UI can eventually mutate: the catalog's
 enabled set, provider ETags, fetch-event health history, and crop overrides.
 Pure Go SQLite (modernc.org/sqlite) — no new native linkage. WAL mode means
 `-wal`/`-shm` sidecar files appear next to it; copy the trio (or a quiesced
@@ -159,7 +159,7 @@ prunes, and serves the same way regardless of provider.
 ## The reconciler
 
 A background loop the server starts (the library doesn't — see [library vs
-server](#library-vs-server)). On boot, then every `PAPERBOY_POLL_INTERVAL`, for
+server](#library-vs-server)). On boot, then every `BROADSHEET_POLL_INTERVAL`, for
 each source:
 
 ```
@@ -168,7 +168,7 @@ editions, versions := source.Provider.Poll(deps, seen, now)
 for each edition: archive.Put(source.ID, edition)   # atomic; keyed by edition date
 persist versions -> state.versions[source.ID]   # minus tokens of editions that failed to store
 record health: success if we stored anything; failure on poll or store errors
-prune archive/<id>/* older than PAPERBOY_ARCHIVE_DAYS
+prune archive/<id>/* older than BROADSHEET_ARCHIVE_DAYS
 ```
 
 Right now sources are polled sequentially on a fixed interval, and a source that
@@ -181,7 +181,7 @@ later rather than built.
 The provider probes three day-of-month folders — UTC yesterday, today, tomorrow.
 That's the smallest window that works for any timezone: the earth spans UTC−12 to
 UTC+14, so a paper's local date is always within a day of UTC's. Three folders
-therefore always cover the one holding its current edition, without paperboy
+therefore always cover the one holding its current edition, without broadsheet
 knowing anything about that paper's timezone or press schedule. It's a couple of
 cheap requests instead of a per-paper schedule table nobody wants to maintain.
 
@@ -240,7 +240,7 @@ upstream on demand.
 | `GET /health` | Liveness — 200 whenever the process is up. |
 | `GET /healthz` | Readiness — 200 once at least one usable edition is archived. |
 | `GET /paper/{id}/{date}.png` | A specific archived edition (`YYYYMMDD`). |
-| `/api/v1/…` | Management plane (JSON): status, catalog with enabled flags + health, enable/disable (applies live — the engine reloads its source set), on-demand refresh, edition listing. Mutations honor `PAPERBOY_ADMIN_TOKEN`. |
+| `/api/v1/…` | Management plane (JSON): status, catalog with enabled flags + health, enable/disable (applies live — the engine reloads its source set), on-demand refresh, edition listing. Mutations honor `BROADSHEET_ADMIN_TOKEN`. |
 | `GET /`, `GET /current.png` | **Deprecated.** The old advance-on-GET rotation (per-device cursor, `?device=`). Kept for existing deployments; will be removed before 1.0. |
 
 Health is two-timestamped: `last_poll_ok` proves upstream reachability (a
@@ -251,12 +251,12 @@ edition stores again.
 The image endpoints take framing params — `?w=` / `?h=` (target size),
 `?fit=contain|cover`, `?margin=<pct>` — and the rotation endpoints take
 `?sources=<ids>`, `?interval=<dur>`, `?phase=<n>`, `?slot=<n>`. Every response
-sets `X-Paperboy-Source`, `-Width`, `-Height`, and `-Days-Old`, plus
-`X-Paperboy-Stale: true` when a slot's source had nothing archived and the next
-source with content was substituted. Rotation responses add `X-Paperboy-Slot`
-and `X-Paperboy-Next-Change` (seconds until the rotation advances).
+sets `X-Broadsheet-Source`, `-Width`, `-Height`, and `-Days-Old`, plus
+`X-Broadsheet-Stale: true` when a slot's source had nothing archived and the next
+source with content was substituted. Rotation responses add `X-Broadsheet-Slot`
+and `X-Broadsheet-Next-Change` (seconds until the rotation advances).
 
-`X-Paperboy-Days-Old` is `floor(now − edition date)` in whole days — elapsed time
+`X-Broadsheet-Days-Old` is `floor(now − edition date)` in whole days — elapsed time
 since the edition, which sidesteps the timezone off-by-one you'd get comparing
 against a wall-clock "today."
 
@@ -277,13 +277,13 @@ all harmless; displays sharing a playlist stay in sync automatically (or
 deliberately offset via `phase=`); and a restart changes nothing. If the slot's
 source has nothing archived yet (cold-start fill-in), the rotation
 deterministically advances to the next source that does and marks the response
-`X-Paperboy-Stale` — every client makes the same substitution.
+`X-Broadsheet-Stale` — every client makes the same substitution.
 
 The slot boundary doubles as the refresh hint — "when does this content next
 change" — delivered in whatever transport each device class understands:
 
 - **Raw pullers:** `Cache-Control: max-age=<to boundary>` + `ETag` (skip the
-  repaint on 304) + `X-Paperboy-Next-Change`.
+  repaint on 304) + `X-Broadsheet-Next-Change`.
 - **TRMNL/BYOS:** the envelope's `refresh_rate` (clamped ≥60s), so the firmware
   wakes at the boundary. The image is a grayscale PNG: wire-compatible today for
   BYOS/custom clients; stock TRMNL firmware additionally needs the 1-bit output
@@ -316,7 +316,7 @@ paths, by device type:
   can't do CSS. `fit=cover` never upscales past the master; oversized canvases
   get the native-resolution center region instead.
 
-`PAPERBOY_WIDTH` is the master width we render and cache at (the quality ceiling);
+`BROADSHEET_WIDTH` is the master width we render and cache at (the quality ceiling);
 everything downscales from it, never up. One master render feeds a 13" Visionect,
 a TRMNL, a Home Assistant card, and a browser tab.
 
@@ -324,13 +324,13 @@ a TRMNL, a Home Assistant card, and a browser tab.
 
 | Var | Default | Description |
 |---|---|---|
-| `PAPERBOY_PORT` | `8080` | HTTP listen port |
-| `PAPERBOY_DATA_DIR` | `./data` | Root for `archive/`, `cache/`, `paperboy.db` |
-| `PAPERBOY_WIDTH` | `1600` | Master render width (quality ceiling) |
-| `PAPERBOY_POLL_INTERVAL` | `30m` | Reconciler cadence |
-| `PAPERBOY_ARCHIVE_DAYS` | `14` | PDF archive retention |
-| `PAPERBOY_ADMIN_TOKEN` | *(unset)* | Bearer token gating mutating `/api/v1` calls |
-| `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
+| `BROADSHEET_PORT` | `8080` | HTTP listen port |
+| `BROADSHEET_DATA_DIR` | `./data` | Root for `archive/`, `cache/`, `broadsheet.db` |
+| `BROADSHEET_WIDTH` | `1600` | Master render width (quality ceiling) |
+| `BROADSHEET_POLL_INTERVAL` | `30m` | Reconciler cadence |
+| `BROADSHEET_ARCHIVE_DAYS` | `14` | PDF archive retention |
+| `BROADSHEET_ADMIN_TOKEN` | *(unset)* | Bearer token gating mutating `/api/v1` calls |
+| `BROADSHEET_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
 ## Why it's built this way
 
@@ -348,7 +348,7 @@ A few decisions worth writing down so we don't re-litigate them:
   under its true edition date no matter which folder we probed.
 - The archive builds up; it can't be backfilled. freedomforum only keeps ~2 days
   live, so a deep archive exists only because the reconciler fetches daily and
-  retains. A fresh install is ~2 days deep whatever `PAPERBOY_ARCHIVE_DAYS` says,
+  retains. A fresh install is ~2 days deep whatever `BROADSHEET_ARCHIVE_DAYS` says,
   and fills in over time. That's the main reason to fetch eagerly in the
   background — a lazy, request-driven design can never build history.
 - PNGs are cache, not state. See [storage layout](#storage-layout).
@@ -359,7 +359,7 @@ A few decisions worth writing down so we don't re-litigate them:
   gets in its own transport (max-age/ETag, TRMNL refresh_rate, okular.Sleep).
   There is deliberately no server-side Display resource to manage — Visionect
   panels already have their own server, and everything else takes a URL.
-- Both health endpoints stay. paperboy should run under compose *or* k8s, and the
+- Both health endpoints stay. broadsheet should run under compose *or* k8s, and the
   liveness/readiness split costs compose nothing while being load-bearing under an
   orchestrator.
 - `?w=` stays. One instance really does serve several device classes with
@@ -367,7 +367,7 @@ A few decisions worth writing down so we don't re-litigate them:
 
 ## Library vs server
 
-`pkg/paperboy` is a passive engine: it renders and reads. The background
+`pkg/broadsheet` is a passive engine: it renders and reads. The background
 reconciler is a server concern, started explicitly with `p.StartReconciler(ctx)`,
 so embedding the engine never quietly spawns a goroutine fetching PDFs. Embedders
 that want the mirror opt into it.
@@ -384,11 +384,11 @@ internal/
   archive/           durable PDF store: atomic Put, Newest, prune
   render/            MediaType-aware "normalize to master PNG" (wraps rasterize)
   rasterize/         PDF -> image (go-fitz / MuPDF)
-  store/             paperboy.db (SQLite): sources, provider ETags, health events
+  store/             broadsheet.db (SQLite): sources, provider ETags, health events
   catalog/           embedded catalog.json: the browsable list of known papers
   cache/             legacy state.json reader (one-time import only)
   buildinfo/         version string + User-Agent
-pkg/paperboy/        the engine: wires it all together; RenderCurrent / RenderFor /
+pkg/broadsheet/        the engine: wires it all together; RenderCurrent / RenderFor /
                      StartReconciler
 ```
 

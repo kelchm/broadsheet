@@ -1,4 +1,4 @@
-// Package cache owns paperboy's small persistent state file.
+// Package cache owns broadsheet's small persistent state file.
 //
 // State is a single JSON file written atomically (tmp + rename). It holds
 // per-source health and each provider's opaque change tokens (ETags), so
@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// State is the persistent state for a paperboy instance.
+// State is the persistent state for a broadsheet instance.
 //
 // Rotation is deterministic from the clock and needs no stored index, so state
 // is just per-source health plus each provider's opaque change tokens.

@@ -1,4 +1,4 @@
-# Dev container for paperboy. Includes Go toolchain + all CGo system deps.
+# Dev container for broadsheet. Includes Go toolchain + all CGo system deps.
 # Used by VS Code "Reopen in Container" and `docker compose -f compose.dev.yaml up`.
 #
 # Mirrors docker/Dockerfile's builder stage; intentionally NOT multi-stage —
@@ -32,7 +32,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME
 
 USER $USERNAME
-WORKDIR /workspaces/paperboy
+WORKDIR /workspaces/broadsheet
 
 # Pre-warm Go env
 ENV GOFLAGS=-buildvcs=false
