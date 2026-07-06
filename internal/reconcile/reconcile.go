@@ -34,9 +34,18 @@ type fetchEventPruner interface {
 	PruneFetchEvents(retention time.Duration, now time.Time) (int, error)
 }
 
+// pollRecorder is optionally implemented by stores that track clean polls
+// separately from stored editions (the two-timestamp health model).
+type pollRecorder interface {
+	RecordPoll(sourceID string, when time.Time) error
+}
+
 // Reconciler keeps the archive up to date for a set of sources.
 type Reconciler struct {
+	// Sources is a static set; SourcesFn, when set, is consulted each cycle
+	// instead (a live view, so runtime enable/disable applies next cycle).
 	Sources   []source.Source
+	SourcesFn func() []source.Source
 	Archive   *archive.Store
 	Store     StateStore
 	Deps      source.Deps
@@ -91,7 +100,11 @@ func (r *Reconciler) Run(ctx context.Context) {
 // polled sequentially, which naturally staggers upstream requests.
 func (r *Reconciler) ReconcileOnce(ctx context.Context) {
 	now := r.now()
-	for _, src := range r.Sources {
+	srcs := r.Sources
+	if r.SourcesFn != nil {
+		srcs = r.SourcesFn()
+	}
+	for _, src := range srcs {
 		select {
 		case <-ctx.Done():
 			return
@@ -191,6 +204,12 @@ func (r *Reconciler) ReconcileSource(ctx context.Context, src source.Source, now
 		_ = r.Store.RecordFailure(src.ID, err.Error(), now)
 		log.Warn("reconcile poll failed", "source", src.ID, "err", err)
 		return
+	}
+	// The poll itself succeeded (even if it was all 304s, or a Put fails
+	// below): record reachability so a weekend of no-op polls doesn't look
+	// like a dead source.
+	if pr, ok := r.Store.(pollRecorder); ok {
+		_ = pr.RecordPoll(src.ID, now)
 	}
 
 	stored := 0

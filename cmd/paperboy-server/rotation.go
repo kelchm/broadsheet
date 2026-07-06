@@ -68,7 +68,7 @@ func writeEngineError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, paperboy.ErrNoSourcesMatch):
 		http.Error(w, err.Error(), http.StatusBadRequest)
-	case errors.Is(err, paperboy.ErrUnknownSource):
+	case errors.Is(err, paperboy.ErrUnknownSource), errors.Is(err, paperboy.ErrEditionNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, paperboy.ErrNoneAvailable):
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)

@@ -81,6 +81,28 @@ func (s *Store) Has(sourceID string, date time.Time) bool {
 	return false
 }
 
+// List returns a source's archived editions, oldest first.
+func (s *Store) List(sourceID string) []Entry {
+	return s.list(sourceID)
+}
+
+// Get returns the archived edition for (sourceID, date's day), if stored.
+func (s *Store) Get(sourceID string, date time.Time) (Entry, bool) {
+	if date.IsZero() {
+		return Entry{}, false
+	}
+	base := filepath.Join(s.Root, sourceID, date.UTC().Format(dateLayout))
+	for _, e := range []string{".pdf", ".png"} {
+		if fi, err := os.Stat(base + e); err == nil && fi.Size() > 0 {
+			return Entry{
+				SourceID: sourceID, Date: dayUTC(date), Media: mediaFromExt(e),
+				Path: base + e,
+			}, true
+		}
+	}
+	return Entry{}, false
+}
+
 // Newest returns the newest stored edition for a source.
 func (s *Store) Newest(sourceID string) (Entry, bool) {
 	entries := s.list(sourceID)

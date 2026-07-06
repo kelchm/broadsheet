@@ -225,7 +225,10 @@ those per-width outputs are computed per request, not stored.
 
 ## HTTP API
 
-Every handler is a pure read over the local archive/cache. None of them fetch.
+Every *device-plane* handler is a pure read over the local archive/cache —
+none of them fetch or mutate. The management plane (`/api/v1`) is the
+explicit exception: PATCH mutates the enabled set and POST refresh polls
+upstream on demand.
 
 | Endpoint | Behavior |
 |---|---|
@@ -236,10 +239,14 @@ Every handler is a pure read over the local archive/cache. None of them fetch.
 | `GET /sources` | JSON: the configured sources and their health. |
 | `GET /health` | Liveness — 200 whenever the process is up. |
 | `GET /healthz` | Readiness — 200 once at least one usable edition is archived. |
+| `GET /paper/{id}/{date}.png` | A specific archived edition (`YYYYMMDD`). |
+| `/api/v1/…` | Management plane (JSON): status, catalog with enabled flags + health, enable/disable (applies live — the engine reloads its source set), on-demand refresh, edition listing. Mutations honor `PAPERBOY_ADMIN_TOKEN`. |
 | `GET /`, `GET /current.png` | **Deprecated.** The old advance-on-GET rotation (per-device cursor, `?device=`). Kept for existing deployments; will be removed before 1.0. |
 
-`GET /paper/{id}/{date}.png` (a specific archived edition) is an obvious future
-addition now that there's a real archive, but it isn't there yet.
+Health is two-timestamped: `last_poll_ok` proves upstream reachability (a
+weekend of all-304 no-op polls is healthy), while `last_edition_ok` is when an
+edition last actually stored; failures carry the newest error message until an
+edition stores again.
 
 The image endpoints take framing params — `?w=` / `?h=` (target size),
 `?fit=contain|cover`, `?margin=<pct>` — and the rotation endpoints take
@@ -322,6 +329,7 @@ a TRMNL, a Home Assistant card, and a browser tab.
 | `PAPERBOY_WIDTH` | `1600` | Master render width (quality ceiling) |
 | `PAPERBOY_POLL_INTERVAL` | `30m` | Reconciler cadence |
 | `PAPERBOY_ARCHIVE_DAYS` | `14` | PDF archive retention |
+| `PAPERBOY_ADMIN_TOKEN` | *(unset)* | Bearer token gating mutating `/api/v1` calls |
 | `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
 ## Why it's built this way

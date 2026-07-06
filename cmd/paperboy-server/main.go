@@ -31,6 +31,9 @@ type envConfig struct {
 	LogLevel     string        `env:"PAPERBOY_LOG_LEVEL" envDefault:"info"`
 	PollInterval time.Duration `env:"PAPERBOY_POLL_INTERVAL" envDefault:"30m"`
 	ArchiveDays  int           `env:"PAPERBOY_ARCHIVE_DAYS" envDefault:"14"`
+	// AdminToken, when set, gates mutating /api/v1 calls behind
+	// "Authorization: Bearer <token>". Empty = open (trusted-network default).
+	AdminToken string `env:"PAPERBOY_ADMIN_TOKEN"`
 }
 
 func main() {
@@ -75,7 +78,7 @@ func main() {
 	addr := fmt.Sprintf(":%d", ec.Port)
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newRouter(p, logger),
+		Handler:           newRouter(p, logger, ec.AdminToken),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -102,7 +105,7 @@ func main() {
 
 // newRouter assembles the real route table. Kept separate from main() so
 // httptest can exercise exactly what production serves.
-func newRouter(p *paperboy.Paperboy, logger *slog.Logger) http.Handler {
+func newRouter(p *paperboy.Paperboy, logger *slog.Logger, adminToken string) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
@@ -114,10 +117,24 @@ func newRouter(p *paperboy.Paperboy, logger *slog.Logger) http.Handler {
 	r.Get("/rotation.png", handleRotationPNG(p))
 	r.Get("/api/display", handleTRMNLDisplay(p))
 
+	// The management plane (see api.go): what the admin UI talks to. Reads are
+	// open; mutations honor PAPERBOY_ADMIN_TOKEN when configured.
+	r.Route("/api/v1", func(api chi.Router) {
+		api.Get("/status", handleAPIStatus(p))
+		api.Get("/sources", handleAPISources(p))
+		api.Get("/sources/{id}/editions", handleAPIEditions(p))
+		api.Group(func(mut chi.Router) {
+			mut.Use(requireToken(adminToken))
+			mut.Patch("/sources/{id}", handleAPIPatchSource(p))
+			mut.Post("/sources/{id}/refresh", handleAPIRefresh(p))
+		})
+	})
+
 	r.Get("/health", handleHealth)
 	r.Get("/healthz", handleReadiness(p))
 	r.Get("/sources", handleSources(p))
 	r.Get("/paper/{id}.png", handlePaper(p))
+	r.Get("/paper/{id}/{date}.png", handleEdition(p))
 
 	// Deprecated: the advance-on-GET rotation. Each fetch mutates a per-device
 	// cursor, which breaks HTTP caching and makes previews perturb displays.

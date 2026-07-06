@@ -73,9 +73,9 @@ func (s RotationSpec) interval() time.Duration {
 // makes the same substitution — and marks the result Substituted. With an
 // entirely empty archive it returns ErrNoneAvailable.
 func (p *Paperboy) ResolveRotation(spec RotationSpec) (Rotation, error) {
-	srcs := p.sources
+	srcs := p.getSources()
 	if len(spec.Sources) > 0 {
-		srcs = filterSources(p.sources, spec.Sources)
+		srcs = filterSources(srcs, spec.Sources)
 	}
 	if len(srcs) == 0 {
 		return Rotation{}, ErrNoSourcesMatch

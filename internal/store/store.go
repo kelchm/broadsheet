@@ -11,6 +11,7 @@ package store
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -50,6 +51,12 @@ CREATE TABLE crop_overrides (
 	updated_at TEXT NOT NULL
 );
 `,
+	// v2: distinguish "the poll reached upstream cleanly" from "an edition was
+	// stored" — a weekend of 304s is healthy, and a poll that succeeds while
+	// nothing stores must not look dead.
+	`
+ALTER TABLE fetch_events ADD COLUMN kind TEXT NOT NULL DEFAULT 'store';
+`,
 }
 
 // timeLayout is fixed-width on purpose: RFC3339Nano trims trailing fractional
@@ -57,6 +64,10 @@ CREATE TABLE crop_overrides (
 // MAX(at), ORDER BY at, and the prune's string comparison all rely on. All
 // stored times are UTC, so the literal Z is correct.
 const timeLayout = "2006-01-02T15:04:05.000000000Z"
+
+// ErrNotFound reports that a row doesn't exist — distinct from I/O failures so
+// callers can map it to a 404 instead of a 500.
+var ErrNotFound = errors.New("store: not found")
 
 // Store wraps the SQLite database. Safe for concurrent use.
 type Store struct {
@@ -223,10 +234,20 @@ func (s *Store) SetVersions(sourceID string, versions map[string]string) error {
 	return tx.Commit()
 }
 
-// RecordSuccess appends a success fetch event.
+// RecordSuccess appends a success fetch event (an edition was stored).
 func (s *Store) RecordSuccess(sourceID string, when time.Time) error {
 	_, err := s.db.Exec(
-		`INSERT INTO fetch_events (source_id, at, ok) VALUES (?, ?, 1)`,
+		`INSERT INTO fetch_events (source_id, at, ok, kind) VALUES (?, ?, 1, 'store')`,
+		sourceID, when.UTC().Format(timeLayout),
+	)
+	return err
+}
+
+// RecordPoll appends a clean-poll event: upstream was reachable and answered
+// coherently, whether or not anything new was stored.
+func (s *Store) RecordPoll(sourceID string, when time.Time) error {
+	_, err := s.db.Exec(
+		`INSERT INTO fetch_events (source_id, at, ok, kind) VALUES (?, ?, 1, 'poll')`,
 		sourceID, when.UTC().Format(timeLayout),
 	)
 	return err
@@ -251,7 +272,7 @@ func (s *Store) PruneFetchEvents(retention time.Duration, now time.Time) (int, e
 		DELETE FROM fetch_events WHERE at < ? AND id NOT IN (
 			SELECT id FROM (
 				SELECT id, ROW_NUMBER() OVER (
-					PARTITION BY source_id, ok ORDER BY at DESC, id DESC
+					PARTITION BY source_id, ok, kind ORDER BY at DESC, id DESC
 				) AS rn FROM fetch_events
 			) WHERE rn = 1
 		)`, cutoff)
@@ -262,11 +283,14 @@ func (s *Store) PruneFetchEvents(retention time.Duration, now time.Time) (int, e
 	return int(n), nil
 }
 
-// SourceHealth mirrors the legacy state.json surface: latest success and
-// failure timestamps, with the failure message blanked once a newer success
-// exists. (The richer two-timestamp poll/store model arrives with the API
-// phase; the events table already carries what it needs.)
+// SourceHealth is the two-timestamp model: LastPollOK proves upstream
+// reachability (any clean poll, including all-304 no-op cycles), LastFetchOK
+// is when an edition last actually stored, and LastFetchError/LastErrorMsg
+// carry the newest failure (message blanked once a strictly newer store
+// exists — ties keep it, so a cycle that stores some editions AND fails a Put
+// stays visible).
 type SourceHealth struct {
+	LastPollOK     *time.Time
 	LastFetchOK    *time.Time
 	LastFetchError *time.Time
 	LastErrorMsg   string
@@ -275,68 +299,60 @@ type SourceHealth struct {
 // HealthSnapshot returns per-source health derived from the event history.
 func (s *Store) HealthSnapshot() (map[string]SourceHealth, error) {
 	rows, err := s.db.Query(`
-		SELECT source_id, ok, MAX(at) AS at,
+		SELECT source_id,
+		       MAX(CASE WHEN ok = 1 THEN at END)                    AS poll_at,
+		       MAX(CASE WHEN ok = 1 AND kind = 'store' THEN at END) AS store_at,
+		       MAX(CASE WHEN ok = 0 THEN at END)                    AS fail_at,
 		       (SELECT error_msg FROM fetch_events e2
-		        WHERE e2.source_id = e.source_id AND e2.ok = e.ok
-		        ORDER BY e2.at DESC, e2.id DESC LIMIT 1) AS msg
+		        WHERE e2.source_id = e.source_id AND e2.ok = 0
+		        ORDER BY e2.at DESC, e2.id DESC LIMIT 1)            AS msg
 		FROM fetch_events e
-		GROUP BY source_id, ok`)
+		GROUP BY source_id`)
 	if err != nil {
 		return nil, fmt.Errorf("store: health snapshot: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	out := map[string]SourceHealth{}
-	type lastMsg struct {
-		failAt time.Time
-		okAt   time.Time
-		msg    string
+	parse := func(ns sql.NullString) *time.Time {
+		if !ns.Valid {
+			return nil
+		}
+		t, err := time.Parse(timeLayout, ns.String)
+		if err != nil {
+			return nil
+		}
+		return &t
 	}
-	acc := map[string]*lastMsg{}
+
+	out := map[string]SourceHealth{}
 	for rows.Next() {
-		var id, at, msg string
-		var ok bool
-		if err := rows.Scan(&id, &ok, &at, &msg); err != nil {
+		var id string
+		var pollAt, storeAt, failAt, msg sql.NullString
+		if err := rows.Scan(&id, &pollAt, &storeAt, &failAt, &msg); err != nil {
 			return nil, fmt.Errorf("store: scan health: %w", err)
 		}
-		t, err := time.Parse(timeLayout, at)
-		if err != nil {
-			continue
+		h := SourceHealth{
+			LastPollOK:     parse(pollAt),
+			LastFetchOK:    parse(storeAt),
+			LastFetchError: parse(failAt),
 		}
-		a := acc[id]
-		if a == nil {
-			a = &lastMsg{}
-			acc[id] = a
-		}
-		if ok {
-			a.okAt = t
-		} else {
-			a.failAt = t
-			a.msg = msg
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	for id, a := range acc {
-		h := SourceHealth{}
-		if !a.okAt.IsZero() {
-			t := a.okAt
-			h.LastFetchOK = &t
-		}
-		if !a.failAt.IsZero() {
-			t := a.failAt
-			h.LastFetchError = &t
-			// Legacy surface: a success strictly newer than the last failure
-			// clears the message but keeps the failure timestamp. Ties keep the
-			// message — a reconcile cycle that stores some editions AND fails a
-			// Put records both with the same clock reading, and hiding an active
-			// archive-write failure behind a clean record is the wrong call.
-			if !a.failAt.Before(a.okAt) {
-				h.LastErrorMsg = a.msg
-			}
+		if h.LastFetchError != nil &&
+			(h.LastFetchOK == nil || !h.LastFetchError.Before(*h.LastFetchOK)) {
+			h.LastErrorMsg = msg.String
 		}
 		out[id] = h
 	}
-	return out, nil
+	return out, rows.Err()
+}
+
+// SetSourceEnabled flips a source's membership in the enabled set.
+func (s *Store) SetSourceEnabled(sourceID string, enabled bool) error {
+	res, err := s.db.Exec(`UPDATE sources SET enabled = ? WHERE id = ?`, enabled, sourceID)
+	if err != nil {
+		return fmt.Errorf("store: set enabled: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("%w: source %q", ErrNotFound, sourceID)
+	}
+	return nil
 }

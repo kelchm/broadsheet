@@ -89,7 +89,9 @@ idempotent read: previews, proxies, monitors, and curl can't perturb a display.
 | `GET /rotation.png` | The rotation's current paper as a raw PNG, with `ETag` and `Cache-Control: max-age=<seconds to next slot>`. For image-pull devices. |
 | `GET /api/display` | TRMNL-compatible JSON envelope: `image_url` + `refresh_rate` (seconds until the content next changes). Point TRMNL/BYOS firmware here. |
 | `GET /paper/{id}.png` | The newest archived edition for one source. `ETag`'d pure read. |
+| `GET /paper/{id}/{date}.png` | A specific archived edition (`YYYYMMDD`). |
 | `GET /sources` | JSON: the configured sources and their health. |
+| `/api/v1/…` | The management plane: `GET /status`, `GET /sources` (full catalog + enabled flags + health), `PATCH /sources/{id}` (`{"enabled": bool}` — applies live), `POST /sources/{id}/refresh`, `GET /sources/{id}/editions`. Mutations honor `PAPERBOY_ADMIN_TOKEN` when set. |
 | `GET /health` | Liveness — 200 as long as the process is up. |
 | `GET /healthz` | Readiness — 200 once there's at least one edition archived. |
 | `GET /`, `GET /current.png` | **Deprecated** advance-on-GET rotation; use `/rotation` / `/rotation.png`. Removed before 1.0. |
@@ -147,6 +149,7 @@ Everything's an env var:
 | `PAPERBOY_WIDTH` | `1600` | Master width — what we cache at. `?w=` resizes down from here. |
 | `PAPERBOY_POLL_INTERVAL` | `30m` | How often the background loop checks upstream |
 | `PAPERBOY_ARCHIVE_DAYS` | `14` | How many days of editions to keep |
+| `PAPERBOY_ADMIN_TOKEN` | *(unset)* | When set, mutating `/api/v1` calls require `Authorization: Bearer <token>`. Set it before exposing the server beyond a trusted network. |
 | `PAPERBOY_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
 ## Sources

@@ -67,6 +67,10 @@ var ErrNoneAvailable = errors.New("paperboy: no editions available yet")
 // error (HTTP 404-shaped), distinct from server-side render failures.
 var ErrUnknownSource = errors.New("paperboy: unknown source")
 
+// ErrEditionNotFound is returned for a dated edition that is permanently
+// absent (pruned, or never published) — 404-shaped, never retryable.
+var ErrEditionNotFound = errors.New("paperboy: edition not found")
+
 const (
 	defaultWidth       = 1600
 	defaultPoll        = 30 * time.Minute
@@ -197,8 +201,11 @@ type Health struct {
 	Sources map[string]SourceHealth
 }
 
-// SourceHealth is the per-source health record.
+// SourceHealth is the per-source health record. LastPollOK proves upstream
+// reachability (clean poll, even all-304); LastFetchOK is when an edition
+// last stored.
 type SourceHealth struct {
+	LastPollOK     *time.Time
 	LastFetchOK    *time.Time
 	LastFetchError *time.Time
 	LastError      string
@@ -207,7 +214,6 @@ type SourceHealth struct {
 // Paperboy is the engine. Construct one with New. Safe for concurrent use.
 type Paperboy struct {
 	cfg        Config
-	sources    []source.Source
 	archive    *archive.Store
 	renderer   *render.Renderer
 	store      *store.Store
@@ -215,6 +221,15 @@ type Paperboy struct {
 	cacheDir   string
 	cursors    Cursors
 	now        func() time.Time
+
+	// The active source set. Mutable at runtime (enable/disable via the API
+	// reloads it from the store), so all readers take the lock and treat the
+	// returned slice as an immutable snapshot. reloadMu serializes the whole
+	// store-mutate-then-reload sequence so concurrent PATCHes can't leave the
+	// live set missing a committed change.
+	srcMu    sync.RWMutex
+	reloadMu sync.Mutex
+	sources  []source.Source
 
 	// renderSF collapses concurrent cold-cache renders of the same PNG into a
 	// single rasterization — each in-flight render can hold hundreds of MB.
@@ -267,8 +282,18 @@ func New(cfg Config) (*Paperboy, error) {
 	}
 
 	arch := &archive.Store{Root: archiveDir}
-	rec := &reconcile.Reconciler{
-		Sources:   srcs,
+	p := &Paperboy{
+		cfg:      cfg,
+		sources:  srcs,
+		archive:  arch,
+		renderer: render.New(),
+		store:    st,
+		cacheDir: cacheDir,
+		cursors:  cursors,
+		now:      time.Now,
+	}
+	p.reconciler = &reconcile.Reconciler{
+		SourcesFn: p.getSources, // live view: enable/disable applies next cycle
 		Archive:   arch,
 		Store:     st,
 		Deps:      source.Deps{HTTP: &http.Client{Timeout: 30 * time.Second}, Logger: cfg.Logger},
@@ -277,18 +302,117 @@ func New(cfg Config) (*Paperboy, error) {
 		Logger:    cfg.Logger,
 		CacheDir:  cacheDir,
 	}
+	return p, nil
+}
 
-	return &Paperboy{
-		cfg:        cfg,
-		sources:    srcs,
-		archive:    arch,
-		renderer:   render.New(),
-		store:      st,
-		reconciler: rec,
-		cacheDir:   cacheDir,
-		cursors:    cursors,
-		now:        time.Now,
-	}, nil
+// getSources returns the active source set (an immutable snapshot).
+func (p *Paperboy) getSources() []source.Source {
+	p.srcMu.RLock()
+	defer p.srcMu.RUnlock()
+	return p.sources
+}
+
+// ReloadSources re-reads the enabled set from the store and swaps it in. A
+// no-op for engines constructed with explicit Config.Sources. An empty enabled
+// set is legal (the user can disable everything; devices get 4xx/503 until
+// something is enabled again).
+func (p *Paperboy) ReloadSources() error {
+	if p.cfg.Sources != nil {
+		return nil
+	}
+	p.reloadMu.Lock()
+	defer p.reloadMu.Unlock()
+	return p.reloadLocked()
+}
+
+func (p *Paperboy) reloadLocked() error {
+	srcs, err := loadEnabled(p.store, p.cfg.Logger)
+	if err != nil {
+		return err
+	}
+	p.srcMu.Lock()
+	p.sources = srcs
+	p.srcMu.Unlock()
+	return nil
+}
+
+// SetSourceEnabled flips a catalog source in or out of the enabled set and
+// applies it immediately (rotation next request, polling next cycle).
+func (p *Paperboy) SetSourceEnabled(sourceID string, enabled bool) error {
+	p.reloadMu.Lock()
+	defer p.reloadMu.Unlock()
+	if err := p.store.SetSourceEnabled(sourceID, enabled); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
+		}
+		return fmt.Errorf("paperboy: set enabled: %w", err)
+	}
+	if p.cfg.Sources != nil {
+		return nil
+	}
+	return p.reloadLocked()
+}
+
+// CatalogEntry is one catalog paper with its enabled state, for browsing.
+type CatalogEntry struct {
+	ID       string
+	Name     string
+	Location string
+	Enabled  bool
+}
+
+// Catalog returns every known paper (the full store catalog) with enabled
+// flags, in position order.
+func (p *Paperboy) Catalog() ([]CatalogEntry, error) {
+	rows, err := p.store.ListSources(false)
+	if err != nil {
+		return nil, fmt.Errorf("paperboy: catalog: %w", err)
+	}
+	loc := map[string]string{}
+	if entries, err := catalog.All(); err == nil {
+		for _, e := range entries {
+			loc[e.ID] = e.Location
+		}
+	}
+	out := make([]CatalogEntry, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, CatalogEntry{
+			ID: r.ID, Name: r.DisplayName, Location: loc[r.ID], Enabled: r.Enabled,
+		})
+	}
+	return out, nil
+}
+
+// ListEditions returns the archived edition dates for a source, oldest first.
+// Disabled catalog papers remain addressable — their history outlives the
+// toggle. Same-day duplicates (media-type changes on re-post) are collapsed.
+func (p *Paperboy) ListEditions(sourceID string) ([]time.Time, error) {
+	if !p.knownSource(sourceID) {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
+	}
+	entries := p.archive.List(sourceID)
+	out := make([]time.Time, 0, len(entries))
+	var last time.Time
+	for _, e := range entries {
+		if !e.Date.Equal(last) {
+			out = append(out, e.Date)
+			last = e.Date
+		}
+	}
+	return out, nil
+}
+
+// RenderEdition renders a specific archived edition of a source.
+func (p *Paperboy) RenderEdition(ctx context.Context, sourceID string, date time.Time, opts ...RenderOptions) (*Result, error) {
+	if !p.knownSource(sourceID) {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
+	}
+	entry, ok := p.archive.Get(sourceID, date)
+	if !ok {
+		// Permanent, not retryable: the date was pruned or never published.
+		return nil, fmt.Errorf("%w: %s has no edition for %s", ErrEditionNotFound, sourceID, date.UTC().Format("20060102"))
+	}
+	return p.serve(ctx, entry, false, optsOrDefault(opts))
 }
 
 // loadSources seeds the store from the embedded catalog, then loads the
@@ -313,12 +437,18 @@ func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 	if err := st.SeedSources(rows); err != nil {
 		return nil, fmt.Errorf("paperboy: seed sources: %w", err)
 	}
+	return loadEnabled(st, logger)
+}
 
+// loadEnabled reads and decodes the enabled set. Zero enabled rows is a legal,
+// user-reachable state (everything toggled off); the error case is enabled
+// rows existing but NONE decoding — that's data this build can't understand.
+func loadEnabled(st *store.Store, logger *slog.Logger) ([]source.Source, error) {
 	stored, err := st.ListSources(true)
 	if err != nil {
 		return nil, fmt.Errorf("paperboy: list sources: %w", err)
 	}
-	var out []source.Source
+	out := make([]source.Source, 0, len(stored))
 	for _, r := range stored {
 		s, err := registry.Build(r.ID, r.DisplayName, r.ProviderType, r.ProviderConfig)
 		if err != nil {
@@ -327,10 +457,33 @@ func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 		}
 		out = append(out, s)
 	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("paperboy: no enabled sources decoded (%d enabled rows; check the warnings above, or set Config.Sources)", len(stored))
+	if len(out) == 0 && len(stored) > 0 {
+		return nil, fmt.Errorf("paperboy: none of the %d enabled sources decoded (version skew? check the warnings above)", len(stored))
 	}
 	return out, nil
+}
+
+// knownSource reports whether an ID exists at all — in the live set, or (for
+// store-backed engines) anywhere in the catalog. Editions/refresh endpoints
+// must address disabled papers too: the API advertises the full catalog, and
+// the archive keeps serving a paper's history after it's toggled off.
+func (p *Paperboy) knownSource(id string) bool {
+	if source.ByID(p.getSources(), id) != nil {
+		return true
+	}
+	if p.cfg.Sources != nil {
+		return false
+	}
+	rows, err := p.store.ListSources(false)
+	if err != nil {
+		return false
+	}
+	for _, r := range rows {
+		if r.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // importLegacyState migrates a pre-SQLite state.json (provider ETags +
@@ -396,7 +549,22 @@ func (p *Paperboy) Poll(ctx context.Context) {
 
 // Refresh polls a single source synchronously and archives any new edition.
 func (p *Paperboy) Refresh(ctx context.Context, sourceID string) error {
-	src := source.ByID(p.sources, sourceID)
+	src := source.ByID(p.getSources(), sourceID)
+	if src == nil && p.cfg.Sources == nil {
+		// Disabled catalog papers are refreshable too (fetch-then-preview
+		// without enabling into every display's rotation).
+		if rows, err := p.store.ListSources(false); err == nil {
+			for _, r := range rows {
+				if r.ID != sourceID {
+					continue
+				}
+				if s, err := registry.Build(r.ID, r.DisplayName, r.ProviderType, r.ProviderConfig); err == nil {
+					src = &s
+				}
+				break
+			}
+		}
+	}
 	if src == nil {
 		return fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 	}
@@ -411,9 +579,9 @@ func (p *Paperboy) Refresh(ctx context.Context, sourceID string) error {
 // source has none yet.
 func (p *Paperboy) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*Result, error) {
 	o := optsOrDefault(opts)
-	srcs := p.sources
+	srcs := p.getSources()
 	if len(o.Sources) > 0 {
-		srcs = filterSources(p.sources, o.Sources)
+		srcs = filterSources(srcs, o.Sources)
 	}
 	if len(srcs) == 0 {
 		return nil, ErrNoSourcesMatch
@@ -431,7 +599,7 @@ func (p *Paperboy) RenderCurrent(ctx context.Context, opts ...RenderOptions) (*R
 
 // RenderFor returns the newest archived edition for a specific source.
 func (p *Paperboy) RenderFor(ctx context.Context, sourceID string, opts ...RenderOptions) (*Result, error) {
-	if source.ByID(p.sources, sourceID) == nil {
+	if source.ByID(p.getSources(), sourceID) == nil {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownSource, sourceID)
 	}
 	entry, ok := p.archive.Newest(sourceID)
@@ -618,8 +786,9 @@ func optsOrDefault(opts []RenderOptions) RenderOptions {
 
 // ListSources returns the configured sources.
 func (p *Paperboy) ListSources() []Source {
-	out := make([]Source, len(p.sources))
-	copy(out, p.sources)
+	srcs := p.getSources()
+	out := make([]Source, len(srcs))
+	copy(out, srcs)
 	return out
 }
 
@@ -639,6 +808,7 @@ func (p *Paperboy) HealthSnapshot() Health {
 	out := Health{Sources: make(map[string]SourceHealth, len(snap))}
 	for id, rec := range snap {
 		out.Sources[id] = SourceHealth{
+			LastPollOK:     rec.LastPollOK,
 			LastFetchOK:    rec.LastFetchOK,
 			LastFetchError: rec.LastFetchError,
 			LastError:      rec.LastErrorMsg,

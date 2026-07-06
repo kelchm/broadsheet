@@ -236,3 +236,35 @@ func TestPruneFetchEvents_KeepsNewestSuccessAndFailure(t *testing.T) {
 		t.Errorf("LastFetchOK = %v, want %v preserved past retention", got, lastGood)
 	}
 }
+
+func TestHealthSnapshot_PollVsStore(t *testing.T) {
+	s := open(t)
+	base := time.Date(2026, 6, 30, 10, 0, 0, 0, time.UTC)
+	// An edition stored two days ago, clean polls since (weekend of 304s).
+	if err := s.RecordSuccess("a", base.AddDate(0, 0, -2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordPoll("a", base); err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := s.HealthSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := h["a"].LastPollOK; got == nil || !got.Equal(base) {
+		t.Errorf("LastPollOK = %v, want %v (clean poll proves reachability)", got, base)
+	}
+	if got := h["a"].LastFetchOK; got == nil || !got.Equal(base.AddDate(0, 0, -2)) {
+		t.Errorf("LastFetchOK = %v, want the store event, not the poll", got)
+	}
+
+	// A source with only poll events (nothing ever stored) still shows reachable.
+	if err := s.RecordPoll("b", base); err != nil {
+		t.Fatal(err)
+	}
+	h, _ = s.HealthSnapshot()
+	if h["b"].LastPollOK == nil || h["b"].LastFetchOK != nil {
+		t.Errorf("poll-only source = %+v, want LastPollOK set and LastFetchOK nil", h["b"])
+	}
+}

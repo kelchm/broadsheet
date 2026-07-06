@@ -53,7 +53,7 @@ func newTestServer(t *testing.T) *httptest.Server {
 		t.Fatalf("paperboy.New: %v", err)
 	}
 
-	srv := httptest.NewServer(newRouter(p, slog.New(slog.DiscardHandler)))
+	srv := httptest.NewServer(newRouter(p, slog.New(slog.DiscardHandler), ""))
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -412,5 +412,227 @@ func TestEtagMatches(t *testing.T) {
 		if got := etagMatches(c.header, e); got != c.want {
 			t.Errorf("etagMatches(%q) = %v, want %v", c.header, got, c.want)
 		}
+	}
+}
+
+// newStoreBackedServer builds the router over a store-backed engine (real
+// 606-paper catalog, 5 defaults enabled) with one edition archived for ny-nyt.
+// Nothing here polls the network — the reconciler is never started.
+func newStoreBackedServer(t *testing.T, adminToken string) *httptest.Server {
+	t.Helper()
+	dir := t.TempDir()
+
+	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
+	img := imaging.New(32, 48, color.NRGBA{R: 0, G: 0, B: 0, A: 255})
+	var buf bytes.Buffer
+	if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
+		t.Fatalf("encode fixture: %v", err)
+	}
+	if _, err := arch.Put("ny-nyt", source.Edition{
+		Date: time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC), Media: source.MediaImage, Data: buf.Bytes(),
+	}); err != nil {
+		t.Fatalf("archive.Put: %v", err)
+	}
+
+	p, err := paperboy.New(paperboy.Config{DataDir: dir, Width: 64})
+	if err != nil {
+		t.Fatalf("paperboy.New: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Close() })
+	srv := httptest.NewServer(newRouter(p, slog.New(slog.DiscardHandler), adminToken))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestAPI_SourcesAndStatus(t *testing.T) {
+	srv := newStoreBackedServer(t, "")
+
+	resp := get(t, srv.URL+"/api/v1/sources")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/api/v1/sources = %d, want 200", resp.StatusCode)
+	}
+	var list struct {
+		Sources []struct {
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Enabled bool   `json:"enabled"`
+		} `json:"sources"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(list.Sources) < 500 {
+		t.Fatalf("catalog size = %d, want the full embedded catalog", len(list.Sources))
+	}
+	enabled := 0
+	for _, s := range list.Sources {
+		if s.Enabled {
+			enabled++
+		}
+	}
+	if enabled != 5 {
+		t.Errorf("enabled = %d, want the 5 defaults", enabled)
+	}
+
+	var status struct {
+		Ready          bool `json:"ready"`
+		SourcesEnabled int  `json:"sources_enabled"`
+		CatalogSize    int  `json:"catalog_size"`
+	}
+	resp = get(t, srv.URL+"/api/v1/status")
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if !status.Ready || status.SourcesEnabled != 5 || status.CatalogSize < 500 {
+		t.Errorf("status = %+v, want ready with 5 enabled over the full catalog", status)
+	}
+}
+
+func patchJSON(t *testing.T, url, body, token string) *http.Response {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodPatch, url, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PATCH %s: %v", url, err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	return resp
+}
+
+func TestAPI_EnableDisableAppliesLive(t *testing.T) {
+	srv := newStoreBackedServer(t, "")
+
+	// usat is a non-default; enabling it must apply to the live rotation set.
+	if resp := patchJSON(t, srv.URL+"/api/v1/sources/usat", `{"enabled": true}`, ""); resp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH usat = %d, want 200", resp.StatusCode)
+	}
+	var status struct {
+		SourcesEnabled int `json:"sources_enabled"`
+	}
+	resp := get(t, srv.URL+"/api/v1/status")
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status.SourcesEnabled != 6 {
+		t.Errorf("after enable: sources_enabled = %d, want 6", status.SourcesEnabled)
+	}
+
+	if resp := patchJSON(t, srv.URL+"/api/v1/sources/nope", `{"enabled": true}`, ""); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("PATCH unknown = %d, want 404", resp.StatusCode)
+	}
+	if resp := patchJSON(t, srv.URL+"/api/v1/sources/usat", `{}`, ""); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("PATCH without enabled = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestAPI_AdminTokenGatesMutations(t *testing.T) {
+	srv := newStoreBackedServer(t, "sekrit")
+
+	// Reads stay open.
+	if resp := get(t, srv.URL+"/api/v1/sources"); resp.StatusCode != http.StatusOK {
+		t.Errorf("read with token configured = %d, want 200 (reads open)", resp.StatusCode)
+	}
+	// Mutations require the bearer token.
+	if resp := patchJSON(t, srv.URL+"/api/v1/sources/usat", `{"enabled": true}`, ""); resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("PATCH without token = %d, want 401", resp.StatusCode)
+	}
+	if resp := patchJSON(t, srv.URL+"/api/v1/sources/usat", `{"enabled": true}`, "wrong"); resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("PATCH with wrong token = %d, want 401", resp.StatusCode)
+	}
+	if resp := patchJSON(t, srv.URL+"/api/v1/sources/usat", `{"enabled": true}`, "sekrit"); resp.StatusCode != http.StatusOK {
+		t.Errorf("PATCH with token = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestAPI_EditionsAndDatedPaper(t *testing.T) {
+	srv := newStoreBackedServer(t, "")
+
+	resp := get(t, srv.URL+"/api/v1/sources/ny-nyt/editions")
+	var editions struct {
+		Editions []string `json:"editions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&editions); err != nil {
+		t.Fatal(err)
+	}
+	if len(editions.Editions) != 1 || editions.Editions[0] != "20260630" {
+		t.Fatalf("editions = %v, want [20260630]", editions.Editions)
+	}
+
+	resp = get(t, srv.URL+"/paper/ny-nyt/20260630.png")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/paper/ny-nyt/20260630.png = %d, want 200", resp.StatusCode)
+	}
+	if resp.Header.Get("ETag") == "" {
+		t.Error("dated edition missing ETag")
+	}
+	if resp := get(t, srv.URL+"/paper/ny-nyt/20260629.png"); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("missing edition = %d, want 404 (permanently absent, not retryable)", resp.StatusCode)
+	}
+	if resp := get(t, srv.URL+"/paper/ny-nyt/junk.png"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("bad date = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestAPI_DisableAllSourcesIsLegalAndSurvivesRestart(t *testing.T) {
+	srv := newStoreBackedServer(t, "")
+
+	// Disable every default; the last one must NOT error or brick anything.
+	for _, id := range []string{"ny-nyt", "ma-bg", "ca-lat", "ca-sfc", "can-ts"} {
+		if resp := patchJSON(t, srv.URL+"/api/v1/sources/"+id, `{"enabled": false}`, ""); resp.StatusCode != http.StatusOK {
+			t.Fatalf("disable %s = %d, want 200", id, resp.StatusCode)
+		}
+	}
+	var status struct {
+		SourcesEnabled int `json:"sources_enabled"`
+	}
+	resp := get(t, srv.URL+"/api/v1/status")
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status.SourcesEnabled != 0 {
+		t.Errorf("sources_enabled = %d, want 0 (empty set is legal)", status.SourcesEnabled)
+	}
+	// Devices get a clean error, not a 500.
+	if resp := get(t, srv.URL+"/rotation.png"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("rotation with nothing enabled = %d, want 400", resp.StatusCode)
+	}
+	// A disabled paper's archive remains addressable.
+	if resp := get(t, srv.URL+"/api/v1/sources/ny-nyt/editions"); resp.StatusCode != http.StatusOK {
+		t.Errorf("editions of disabled source = %d, want 200", resp.StatusCode)
+	}
+	if resp := get(t, srv.URL+"/paper/ny-nyt/20260630.png"); resp.StatusCode != http.StatusOK {
+		t.Errorf("dated edition of disabled source = %d, want 200", resp.StatusCode)
+	}
+	// Re-enable works (state not stuck).
+	if resp := patchJSON(t, srv.URL+"/api/v1/sources/ny-nyt", `{"enabled": true}`, ""); resp.StatusCode != http.StatusOK {
+		t.Errorf("re-enable = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestAPI_RefreshIsTokenGated(t *testing.T) {
+	srv := newStoreBackedServer(t, "sekrit")
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/sources/ny-nyt/refresh", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("refresh without token = %d, want 401", resp.StatusCode)
+	}
+	// Unknown source with the right token: 404 without touching the network.
+	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/api/v1/sources/nope/refresh", nil)
+	req.Header.Set("Authorization", "Bearer sekrit")
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp2.Body.Close() }()
+	if resp2.StatusCode != http.StatusNotFound {
+		t.Errorf("refresh unknown = %d, want 404", resp2.StatusCode)
 	}
 }
