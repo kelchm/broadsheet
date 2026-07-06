@@ -233,21 +233,36 @@ func TestServe_SingleflightCollapsesConcurrentRenders(t *testing.T) {
 }
 
 func TestServe_RenderDetachedFromCallerContext(t *testing.T) {
-	// A canceled caller (client disconnect) must not abort the shared
-	// cache-fill render: the flight's result serves other waiters and the
-	// cache. The render runs under a detached, self-bounded context.
+	// A canceled caller (client disconnect) must not abort the SHARED
+	// cache-fill render — its output serves other waiters and the cache. The
+	// caller's own per-request compose may honor the cancellation; what
+	// matters is that the render completed detached and is reused.
 	fake := &fakeRasterizer{}
 	p := newPDFTestEngine(t, fake)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := p.RenderFor(ctx, "a"); err != nil {
-		t.Fatalf("RenderFor with canceled ctx: %v (render must be detached)", err)
+	_, _ = p.RenderFor(ctx, "a") // canceled caller: response may fail...
+
+	fake.mu.Lock()
+	if fake.ctxError != nil {
+		t.Errorf("rasterizer saw ctx error %v, want detached (nil)", fake.ctxError)
+	}
+	calls := fake.calls
+	fake.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("rasterizer calls = %d, want 1", calls)
+	}
+
+	// ...but the detached render was preserved: a live caller succeeds
+	// without re-rendering.
+	if _, err := p.RenderFor(context.Background(), "a"); err != nil {
+		t.Fatalf("RenderFor after canceled caller: %v", err)
 	}
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
-	if fake.ctxError != nil {
-		t.Errorf("rasterizer saw ctx error %v, want detached (nil)", fake.ctxError)
+	if fake.calls != 1 {
+		t.Errorf("rasterizer re-ran (%d calls); the detached render should have been reused", fake.calls)
 	}
 }
 
@@ -327,5 +342,132 @@ func TestNew_ImportsLegacyStateJSON(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "state.json")); !os.IsNotExist(err) {
 		t.Error("legacy state.json should be gone after import")
+	}
+}
+
+// trackingRasterizer records the maximum number of rasterizations running at
+// once — the global bound the archive grid relies on to not OOM small hosts.
+type trackingRasterizer struct {
+	mu      sync.Mutex
+	current int
+	max     int
+}
+
+func (f *trackingRasterizer) Rasterize(_ context.Context, _, pngPath string, width int) error {
+	f.mu.Lock()
+	f.current++
+	if f.current > f.max {
+		f.max = f.current
+	}
+	f.mu.Unlock()
+	time.Sleep(40 * time.Millisecond)
+	f.mu.Lock()
+	f.current--
+	f.mu.Unlock()
+	return imaging.Save(imaging.New(width, width, color.NRGBA{R: 128, G: 128, B: 128, A: 255}), pngPath)
+}
+
+func TestServe_RasterizationsAreGloballyBounded(t *testing.T) {
+	// Many DIFFERENT cold editions at once (the archive-grid shape):
+	// singleflight can't collapse them, so the global semaphore must queue
+	// them — each concurrent rasterization holds ~150MB+.
+	dir := t.TempDir()
+	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
+	ids := []string{"a", "b", "c", "d", "e", "f"}
+	var srcs []Source
+	for _, id := range ids {
+		if _, err := arch.Put(id, source.Edition{
+			Date:  time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC),
+			Media: source.MediaPDF, Data: []byte("%PDF-fake"),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		srcs = append(srcs, Source{ID: id, DisplayName: id})
+	}
+	p, err := New(Config{DataDir: dir, Width: 64, Sources: srcs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &trackingRasterizer{}
+	p.renderer.Rasterizer = fake
+
+	var wg sync.WaitGroup
+	errs := make([]error, len(ids))
+	for i, id := range ids {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = p.RenderFor(context.Background(), id)
+		}()
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Errorf("source %s: %v", ids[i], err)
+		}
+	}
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	if fake.max > 1 {
+		t.Errorf("max concurrent rasterizations = %d, want 1 (global bound)", fake.max)
+	}
+}
+
+func TestServe_VariantCacheSkipsMasterDecode(t *testing.T) {
+	p, arch, _ := newTestEngine(t, 64, "a")
+
+	first, err := p.RenderFor(context.Background(), "a", RenderOptions{OutputWidth: 48})
+	if err != nil {
+		t.Fatalf("first render: %v", err)
+	}
+
+	// Corrupt the cached master while preserving its stamped mtime: only a
+	// variant-cache hit (same ETag) can serve this request now.
+	entry, _ := arch.Newest("a")
+	matches, _ := filepath.Glob(filepath.Join(p.cacheDir, "a", "*.png"))
+	if len(matches) != 1 {
+		t.Fatalf("expected one cached master, got %v", matches)
+	}
+	fi, err := os.Stat(matches[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(matches[0], []byte("garbage"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(matches[0], fi.ModTime(), fi.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	_ = entry
+
+	second, err := p.RenderFor(context.Background(), "a", RenderOptions{OutputWidth: 48})
+	if err != nil {
+		t.Fatalf("second render should hit the variant cache: %v", err)
+	}
+	if second.ETag != first.ETag {
+		t.Errorf("ETag changed across cache hit: %q vs %q", second.ETag, first.ETag)
+	}
+	// Different params miss the cache and now fail on the corrupted master —
+	// proving the hit above really came from the memo, not the file.
+	if _, err := p.RenderFor(context.Background(), "a", RenderOptions{OutputWidth: 52}); err == nil {
+		t.Error("differently-sized render should have missed the cache and failed on the corrupt master")
+	}
+}
+
+func TestVariantCache_BoundedAndSizeCapped(t *testing.T) {
+	c := newVariantCache(2, 100)
+	big := &Result{Image: make([]byte, 200), ETag: "big"}
+	c.put("big", big)
+	if _, ok := c.get("big"); ok {
+		t.Error("oversized entries must not be cached")
+	}
+	c.put("a", &Result{Image: []byte("1"), ETag: "a"})
+	c.put("b", &Result{Image: []byte("2"), ETag: "b"})
+	c.put("c", &Result{Image: []byte("3"), ETag: "c"}) // evicts a
+	if _, ok := c.get("a"); ok {
+		t.Error("capacity eviction failed")
+	}
+	if _, ok := c.get("c"); !ok {
+		t.Error("newest entry missing")
 	}
 }

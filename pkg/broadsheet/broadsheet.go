@@ -234,6 +234,17 @@ type Engine struct {
 	// renderSF collapses concurrent cold-cache renders of the same PNG into a
 	// single rasterization — each in-flight render can hold hundreds of MB.
 	renderSF singleflight.Group
+	// renderSem bounds rasterizations GLOBALLY: singleflight only collapses
+	// same-edition requests, and a page fanning out many different cold
+	// editions (the archive grid) would otherwise run them all at once and
+	// OOM small hosts. Renders queue instead.
+	renderSem chan struct{}
+	// composeSem bounds concurrent master decodes (~20MB of pixels each) —
+	// kept tight so composes stacked on a running rasterization fit small hosts.
+	composeSem chan struct{}
+	// variants memoizes small rendered outputs by content identity (the ETag),
+	// so thumbnail-heavy pages stop re-decoding masters on every image.
+	variants *variantCache
 }
 
 // New constructs a Engine with the given config.
@@ -297,14 +308,17 @@ func New(cfg Config) (*Engine, error) {
 
 	arch := &archive.Store{Root: archiveDir}
 	p := &Engine{
-		cfg:      cfg,
-		sources:  srcs,
-		archive:  arch,
-		renderer: render.New(),
-		store:    st,
-		cacheDir: cacheDir,
-		cursors:  cursors,
-		now:      time.Now,
+		cfg:        cfg,
+		sources:    srcs,
+		archive:    arch,
+		renderer:   render.New(),
+		store:      st,
+		cacheDir:   cacheDir,
+		cursors:    cursors,
+		now:        time.Now,
+		renderSem:  make(chan struct{}, 1),
+		composeSem: make(chan struct{}, 2),
+		variants:   newVariantCache(128, 256<<10),
 	}
 	p.reconciler = &reconcile.Reconciler{
 		SourcesFn: p.getSources, // live view: enable/disable applies next cycle
@@ -662,18 +676,25 @@ func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opt
 			if renderCacheFresh(pngPath, entry.Path) {
 				return nil, nil // a concurrent caller already rendered it
 			}
+			// Render detached from the requesting context: the flight's result
+			// is shared by every concurrent waiter (and by the cache), so the
+			// winner disconnecting must not cancel the render out from under
+			// the rest. renderTimeout bounds both the queue wait and the render.
+			rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), renderTimeout)
+			defer cancel()
+			// Queue for the global render slot — see renderSem.
+			select {
+			case p.renderSem <- struct{}{}:
+				defer func() { <-p.renderSem }()
+			case <-rctx.Done():
+				return nil, fmt.Errorf("render queue: %w", rctx.Err())
+			}
 			// Stat the artifact BEFORE rendering and stamp its mtime onto the
 			// finished PNG: if the reconciler overwrites the artifact while
 			// this render is in flight, the PNG (stamped with the old mtime)
 			// stays older than the new artifact and re-renders next request —
 			// otherwise the finished PNG's own mtime would mask the update.
 			srcInfo, statErr := os.Stat(entry.Path)
-			// Render detached from the requesting context: the flight's result
-			// is shared by every concurrent waiter (and by the cache), so the
-			// winner disconnecting must not cancel the render out from under
-			// the rest. renderTimeout is the render's own bound.
-			rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), renderTimeout)
-			defer cancel()
 			if err := p.renderer.Render(rctx, entry.Path, entry.Media, pngPath, master); err != nil {
 				return nil, err
 			}
@@ -695,6 +716,32 @@ func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opt
 	if err != nil {
 		return nil, fmt.Errorf("broadsheet: stat render: %w", err)
 	}
+
+	daysOld := int(p.now().UTC().Sub(entry.Date).Hours()) / 24
+	if daysOld < 0 {
+		daysOld = 0
+	}
+
+	// The ETag is the full content identity (edition + render mtime + build +
+	// params), so it doubles as the variant-cache key: a thumbnail-heavy page
+	// hits here instead of re-decoding the master per image.
+	etag := contentETag(entry, pngInfo.ModTime(), master, opts)
+	if cached, ok := p.variants.get(etag); ok {
+		out := *cached
+		out.Stale = stale
+		out.DaysOld = daysOld
+		return &out, nil
+	}
+
+	// Bound concurrent master decodes: each holds ~20MB of pixels, and a grid
+	// page fans out many at once.
+	select {
+	case p.composeSem <- struct{}{}:
+		defer func() { <-p.composeSem }()
+	case <-ctx.Done():
+		return nil, fmt.Errorf("broadsheet: %w", ctx.Err())
+	}
+
 	data, err := os.ReadFile(pngPath) //nolint:gosec // G304: internal cache path from a validated source entry, not user input
 	if err != nil {
 		return nil, fmt.Errorf("broadsheet: read render: %w", err)
@@ -710,11 +757,7 @@ func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opt
 		return nil, fmt.Errorf("broadsheet: encode: %w", err)
 	}
 
-	daysOld := int(p.now().UTC().Sub(entry.Date).Hours()) / 24
-	if daysOld < 0 {
-		daysOld = 0
-	}
-	return &Result{
+	res := &Result{
 		Image:     buf.Bytes(),
 		SourceID:  entry.SourceID,
 		FetchedAt: entry.Date,
@@ -722,8 +765,54 @@ func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opt
 		DaysOld:   daysOld,
 		Width:     out.Bounds().Dx(),
 		Height:    out.Bounds().Dy(),
-		ETag:      contentETag(entry, pngInfo.ModTime(), master, opts),
-	}, nil
+		ETag:      etag,
+	}
+	p.variants.put(etag, res)
+	return res, nil
+}
+
+// variantCache is a small bounded FIFO memo of rendered outputs, keyed by
+// ETag (which already encodes edition, render mtime, build, and params, so
+// entries can never serve stale content — a change mints a new key). Only
+// small outputs are kept: it exists for thumbnails, not full pages.
+type variantCache struct {
+	mu       sync.Mutex
+	entries  map[string]*Result
+	order    []string
+	capacity int
+	maxBytes int
+}
+
+func newVariantCache(capacity, maxBytes int) *variantCache {
+	return &variantCache{
+		entries: make(map[string]*Result, capacity), capacity: capacity, maxBytes: maxBytes,
+	}
+}
+
+func (c *variantCache) get(key string) (*Result, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	r, ok := c.entries[key]
+	return r, ok
+}
+
+func (c *variantCache) put(key string, r *Result) {
+	if len(r.Image) > c.maxBytes {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, exists := c.entries[key]; exists {
+		return
+	}
+	for len(c.entries) >= c.capacity {
+		oldest := c.order[0]
+		c.order = c.order[1:]
+		delete(c.entries, oldest)
+	}
+	stored := *r // callers get copies with Stale/DaysOld patched; keep a canonical value
+	c.entries[key] = &stored
+	c.order = append(c.order, key)
 }
 
 // contentETag builds a strong validator over everything that determines the

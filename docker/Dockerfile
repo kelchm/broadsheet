@@ -22,7 +22,10 @@ RUN mkdir -p /data
 FROM gcr.io/distroless/cc-debian13:nonroot
 COPY --from=builder /out/broadsheet-server /usr/local/bin/broadsheet-server
 COPY --from=builder --chown=nonroot:nonroot /data /data
-ENV BROADSHEET_PORT=8080 \
+# Soft heap ceiling: keeps render spikes GC-bounded on small hosts. Override
+# (or unset with GOMEMLIMIT=off... actually set higher) for large instances.
+ENV GOMEMLIMIT=256MiB \
+    BROADSHEET_PORT=8080 \
     BROADSHEET_DATA_DIR=/data
 VOLUME ["/data"]
 EXPOSE 8080

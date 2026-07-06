@@ -81,14 +81,14 @@ func TestDeriveDPI(t *testing.T) {
 	}
 	defer func() { _ = doc.Close() }()
 
-	// Letter is 612pt wide: dpi = 72 * 2*width / 612.
-	if got := deriveDPI(doc, 1600); got != 300 {
-		// 72*3200/612 = 376.5 -> clamped to 300
-		t.Errorf("deriveDPI(1600) = %v, want clamped 300", got)
+	// Letter is 612pt wide: dpi = 72 * 1.5*width / 612.
+	if got := deriveDPI(doc, 1600); got < 278 || got > 286 {
+		// 72*2400/612 = 282.4
+		t.Errorf("deriveDPI(1600) = %v, want ~282", got)
 	}
-	if got := deriveDPI(doc, 400); got < 90 || got > 100 {
-		// 72*800/612 = 94.1
-		t.Errorf("deriveDPI(400) = %v, want ~94", got)
+	if got := deriveDPI(doc, 400); got < 70 || got > 75 {
+		// 72*600/612 = 70.6 -> clamped up to 72
+		t.Errorf("deriveDPI(400) = %v, want ~72", got)
 	}
 	if got := deriveDPI(doc, 0); got != 300 {
 		t.Errorf("deriveDPI(0) = %v, want fallback 300", got)
