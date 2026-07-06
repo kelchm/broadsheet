@@ -1,0 +1,5458 @@
+[
+ {
+  "id": "ca-lat",
+  "name": "Los Angeles Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_LAT"
+  },
+  "location": "Los Angeles, California",
+  "default": true
+ },
+ {
+  "id": "ca-sfc",
+  "name": "San Francisco Chronicle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_SFC"
+  },
+  "location": "San Francisco, California",
+  "default": true
+ },
+ {
+  "id": "can-ts",
+  "name": "Toronto Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_TS"
+  },
+  "location": "Toronto, Canada",
+  "default": true
+ },
+ {
+  "id": "ma-bg",
+  "name": "The Boston Globe",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_BG"
+  },
+  "location": "Boston, Massachusetts",
+  "default": true
+ },
+ {
+  "id": "ny-nyt",
+  "name": "The New York Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_NYT"
+  },
+  "location": "New York, New York",
+  "default": true
+ },
+ {
+  "id": "ak-adn",
+  "name": "Anchorage Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AK_ADN"
+  },
+  "location": "Anchorage, Alaska"
+ },
+ {
+  "id": "ak-fdnm",
+  "name": "Fairbanks Daily News-Miner",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AK_FDNM"
+  },
+  "location": "Fairbanks, Alaska"
+ },
+ {
+  "id": "al-cch",
+  "name": "The Cherokee County Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_CCH"
+  },
+  "location": "Centre, Alabama"
+ },
+ {
+  "id": "al-dd",
+  "name": "The Decatur Daily",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_DD"
+  },
+  "location": "Decatur, Alabama"
+ },
+ {
+  "id": "al-de",
+  "name": "Dothan Eagle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_DE"
+  },
+  "location": "Dothan, Alabama"
+ },
+ {
+  "id": "al-el",
+  "name": "The Enterprise Ledger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_EL"
+  },
+  "location": "Enterprise, Alabama"
+ },
+ {
+  "id": "al-gt",
+  "name": "The Gadsden Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_GT"
+  },
+  "location": "Gadsden, Alabama"
+ },
+ {
+  "id": "al-ma",
+  "name": "Montgomery Advertiser",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_MA"
+  },
+  "location": "Montgomery, Alabama"
+ },
+ {
+  "id": "al-oan",
+  "name": "Opelika-Auburn News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_OAN"
+  },
+  "location": "Opelika, Alabama"
+ },
+ {
+  "id": "al-td",
+  "name": "TimesDaily",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_TD"
+  },
+  "location": "Florence, Alabama"
+ },
+ {
+  "id": "al-tn",
+  "name": "The Tuscaloosa News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AL_TN"
+  },
+  "location": "Tuscaloosa, Alabama"
+ },
+ {
+  "id": "ar-adg",
+  "name": "Arkansas Democrat-Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AR_ADG"
+  },
+  "location": "Little Rock, Arkansas"
+ },
+ {
+  "id": "ar-hsvv",
+  "name": "Hot Springs Village Voice",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AR_HSVV"
+  },
+  "location": "Hot Springs Village, Arkansas"
+ },
+ {
+  "id": "ar-sr",
+  "name": "The Sentinel-Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AR_SR"
+  },
+  "location": "Hot Springs, Arkansas"
+ },
+ {
+  "id": "ar-tr",
+  "name": "Times Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AR_TR"
+  },
+  "location": "Fort Smith, Arkansas"
+ },
+ {
+  "id": "arg-cla",
+  "name": "Clar\u00edn",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ARG_CLA"
+  },
+  "location": "Buenos Aires, Argentina"
+ },
+ {
+  "id": "arg-et",
+  "name": "El Territorio",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ARG_ET"
+  },
+  "location": "Posadas, Argentina"
+ },
+ {
+  "id": "aus-wa",
+  "name": "The West Australian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AUS_WA"
+  },
+  "location": "Perth, Australia"
+ },
+ {
+  "id": "aut-ds",
+  "name": "Der Standard",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AUT_DS"
+  },
+  "location": "Vienna, Austria"
+ },
+ {
+  "id": "aut-kur",
+  "name": "Kurier",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AUT_KUR"
+  },
+  "location": "Vienna, Austria"
+ },
+ {
+  "id": "aut-nvt",
+  "name": "Neue Vorarlberger Tageszeitung",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AUT_NVT"
+  },
+  "location": "Vorarlberg, Austria"
+ },
+ {
+  "id": "aut-sn",
+  "name": "Salzburger Nachrichten",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AUT_SN"
+  },
+  "location": "Salzburg, Austria"
+ },
+ {
+  "id": "aut-vn",
+  "name": "Vorarlberger Nachrichten",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AUT_VN"
+  },
+  "location": "Vorarlberg, Austria"
+ },
+ {
+  "id": "az-ads",
+  "name": "Arizona Daily Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AZ_ADS"
+  },
+  "location": "Tucson, Arizona"
+ },
+ {
+  "id": "az-ar",
+  "name": "The Arizona Republic",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AZ_AR"
+  },
+  "location": "Phoenix, Arizona"
+ },
+ {
+  "id": "az-cvr",
+  "name": "Chino Valley Review",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AZ_CVR"
+  },
+  "location": "Chino Valley, Arizona"
+ },
+ {
+  "id": "az-dc",
+  "name": "The Daily Courier",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AZ_DC"
+  },
+  "location": "Prescott, Arizona"
+ },
+ {
+  "id": "az-kdm",
+  "name": "Kingman Miner",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AZ_KDM"
+  },
+  "location": "Kingman, Arizona"
+ },
+ {
+  "id": "az-pvt",
+  "name": "Prescott Valley Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AZ_PVT"
+  },
+  "location": "Prescott Valley, Arizona"
+ },
+ {
+  "id": "az-tnh",
+  "name": "Today's News-Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "AZ_TNH"
+  },
+  "location": "Lake Havasu City, Arizona"
+ },
+ {
+  "id": "bel-dm",
+  "name": "De Morgen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BEL_DM"
+  },
+  "location": "Brussels, Belgium"
+ },
+ {
+  "id": "bra-atarde",
+  "name": "A Tarde",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BRA_ATARDE"
+  },
+  "location": "Salvador da Bahia, Brazil"
+ },
+ {
+  "id": "bra-cb",
+  "name": "Correio Braziliense",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BRA_CB"
+  },
+  "location": "Brasilia, Brazil"
+ },
+ {
+  "id": "bra-diar",
+  "name": "DIARINHO",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BRA_DIAR"
+  },
+  "location": "Itaja\u00ed, Brazil"
+ },
+ {
+  "id": "bra-dt",
+  "name": "Di\u00e1rio de Taubat\u00e9",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BRA_DT"
+  },
+  "location": "Taubat\u00e9, Brazil"
+ },
+ {
+  "id": "bra-fdsp",
+  "name": "Folha de S. Paulo",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BRA_FDSP"
+  },
+  "location": "S\u00e3o Paulo, Brazil"
+ },
+ {
+  "id": "bra-oe",
+  "name": "O Estado de S. Paulo",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BRA_OE"
+  },
+  "location": "S\u00e3o Paulo, Brazil"
+ },
+ {
+  "id": "bra^pe-jdc",
+  "name": "Jornal do Commercio",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "BRA^PE_JDC"
+  },
+  "location": "Recife, Brazil"
+ },
+ {
+  "id": "ca-db",
+  "name": "Daily Breeze",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_DB"
+  },
+  "location": "Torrance, California"
+ },
+ {
+  "id": "ca-dn",
+  "name": "Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_DN"
+  },
+  "location": "Los Angeles, California"
+ },
+ {
+  "id": "ca-ds",
+  "name": "The Desert Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_DS"
+  },
+  "location": "Palm Springs, California"
+ },
+ {
+  "id": "ca-ebt",
+  "name": "East Bay Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_EBT"
+  },
+  "location": "Walnut Creek, California"
+ },
+ {
+  "id": "ca-ets",
+  "name": "Times-Standard",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_ETS"
+  },
+  "location": "Eureka, California"
+ },
+ {
+  "id": "ca-fb",
+  "name": "The Fresno Bee",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_FB"
+  },
+  "location": "Fresno, California"
+ },
+ {
+  "id": "ca-ivdb",
+  "name": "Inland Valley Daily Bulletin",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_IVDB"
+  },
+  "location": "Ontario, California"
+ },
+ {
+  "id": "ca-lo",
+  "name": "La Opini\u00f3n",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_LO"
+  },
+  "location": "Los Angeles, California"
+ },
+ {
+  "id": "ca-mb",
+  "name": "The Modesto Bee",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_MB"
+  },
+  "location": "Modesto, California"
+ },
+ {
+  "id": "ca-mij",
+  "name": "Marin Independent Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_MIJ"
+  },
+  "location": "San Rafael, California"
+ },
+ {
+  "id": "ca-mn",
+  "name": "The Mercury News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_MN"
+  },
+  "location": "San Jose, California"
+ },
+ {
+  "id": "ca-mss",
+  "name": "Merced Sun-Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_MSS"
+  },
+  "location": "Merced, California"
+ },
+ {
+  "id": "ca-ocr",
+  "name": "Orange County Register",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_OCR"
+  },
+  "location": "Santa Ana, California"
+ },
+ {
+  "id": "ca-pe",
+  "name": "The Press-Enterprise",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_PE"
+  },
+  "location": "Riverside, California"
+ },
+ {
+  "id": "ca-psn",
+  "name": "Pasadena Star-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_PSN"
+  },
+  "location": "Pasadena, California"
+ },
+ {
+  "id": "ca-pt",
+  "name": "Press-Telegram",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_PT"
+  },
+  "location": "Long Beach, California"
+ },
+ {
+  "id": "ca-rdf",
+  "name": "Redlands Daily Facts",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_RDF"
+  },
+  "location": "Redlands, California"
+ },
+ {
+  "id": "ca-rs",
+  "name": "Record Searchlight",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_RS"
+  },
+  "location": "Redding, California"
+ },
+ {
+  "id": "ca-sb",
+  "name": "The Sacramento Bee",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_SB"
+  },
+  "location": "Sacramento, California"
+ },
+ {
+  "id": "ca-sc",
+  "name": "The Salinas Californian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_SC"
+  },
+  "location": "Salinas, California"
+ },
+ {
+  "id": "ca-sgvt",
+  "name": "San Gabriel Valley Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_SGVT"
+  },
+  "location": "West Covina, California"
+ },
+ {
+  "id": "ca-tr",
+  "name": "The Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_TR"
+  },
+  "location": "Stockton, California"
+ },
+ {
+  "id": "ca-ts",
+  "name": "The Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_TS"
+  },
+  "location": "San Bernardino, California"
+ },
+ {
+  "id": "ca-tt",
+  "name": "The Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_TT"
+  },
+  "location": "San Luis Obispo, California"
+ },
+ {
+  "id": "ca-vcs",
+  "name": "Ventura County Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_VCS"
+  },
+  "location": "Ventura, California"
+ },
+ {
+  "id": "ca-wdn",
+  "name": "Whittier Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_WDN"
+  },
+  "location": "Whittier, California"
+ },
+ {
+  "id": "ca-wjla",
+  "name": "World Journal - Los Angeles",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CA_WJLA"
+  },
+  "location": "Monterey Pk, California"
+ },
+ {
+  "id": "can-ch",
+  "name": "Calgary Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_CH"
+  },
+  "location": "Calgary, Canada"
+ },
+ {
+  "id": "can-cs",
+  "name": "The Calgary Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_CS"
+  },
+  "location": "Calgary, Canada"
+ },
+ {
+  "id": "can-ej",
+  "name": "Edmonton Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_EJ"
+  },
+  "location": "Edmonton, Canada"
+ },
+ {
+  "id": "can-es",
+  "name": "Edmonton Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_ES"
+  },
+  "location": "Edmonton, Canada"
+ },
+ {
+  "id": "can-jm",
+  "name": "Le Journal de Montr\u00e9al",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_JM"
+  },
+  "location": "Montreal, Canada"
+ },
+ {
+  "id": "can-mg",
+  "name": "Montreal Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_MG"
+  },
+  "location": "Montreal, Canada"
+ },
+ {
+  "id": "can-np",
+  "name": "National Post",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_NP"
+  },
+  "location": "Toronto, Canada"
+ },
+ {
+  "id": "can-os",
+  "name": "The Ottawa Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_OS"
+  },
+  "location": "Ottawa, Canada"
+ },
+ {
+  "id": "can-tgam",
+  "name": "The Globe and Mail",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_TGAM"
+  },
+  "location": "Toronto, Canada"
+ },
+ {
+  "id": "can-tmg",
+  "name": "The Macleod Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_TMG"
+  },
+  "location": "Fort Macleod, Canada"
+ },
+ {
+  "id": "can-tp",
+  "name": "The Province",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_TP"
+  },
+  "location": "Vancouver, Canada"
+ },
+ {
+  "id": "can-tsun",
+  "name": "Toronto Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_TSUN"
+  },
+  "location": "Toronto, Canada"
+ },
+ {
+  "id": "can-tws",
+  "name": "The Windsor Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_TWS"
+  },
+  "location": "Windsor, Canada"
+ },
+ {
+  "id": "can-vs",
+  "name": "The Vancouver Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_VS"
+  },
+  "location": "Vancouver, Canada"
+ },
+ {
+  "id": "can-wfp",
+  "name": "Winnipeg Free Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CAN_WFP"
+  },
+  "location": "Winnipeg, Canada"
+ },
+ {
+  "id": "chi-cd",
+  "name": "China Daily",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CHI_CD"
+  },
+  "location": "Beijing, China"
+ },
+ {
+  "id": "chi-pd",
+  "name": "People\u2019s Daily",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CHI_PD"
+  },
+  "location": "Beijing, China"
+ },
+ {
+  "id": "chil-em",
+  "name": "El Mercurio",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CHIL_EM"
+  },
+  "location": "Santiago, Chile"
+ },
+ {
+  "id": "co-dh",
+  "name": "The Durango Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CO_DH"
+  },
+  "location": "Durango, Colorado"
+ },
+ {
+  "id": "co-ds",
+  "name": "The Daily Sentinel",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CO_DS"
+  },
+  "location": "Grand Junction, Colorado"
+ },
+ {
+  "id": "co-fcc",
+  "name": "Fort Collins Coloradoan",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CO_FCC"
+  },
+  "location": "Fort Collins, Colorado"
+ },
+ {
+  "id": "co-pc",
+  "name": "Pueblo Chieftain",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CO_PC"
+  },
+  "location": "Pueblo, Colorado"
+ },
+ {
+  "id": "co-tg",
+  "name": "The Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CO_TG"
+  },
+  "location": "Colorado Springs, Colorado"
+ },
+ {
+  "id": "col-eu",
+  "name": "El Universal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "COL_EU"
+  },
+  "location": "Cartagena, Colombia"
+ },
+ {
+  "id": "col-lr",
+  "name": "La Republica",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "COL_LR"
+  },
+  "location": "Bogota, Colombia"
+ },
+ {
+  "id": "col-vl",
+  "name": "Vanguardia Liberal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "COL_VL"
+  },
+  "location": "Bucaramanga, Colombia"
+ },
+ {
+  "id": "cro-vl",
+  "name": "Vecernji List",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CRO_VL"
+  },
+  "location": "Zagreb, Croatia"
+ },
+ {
+  "id": "ct-cp",
+  "name": "Connecticut Post",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_CP"
+  },
+  "location": "Bridgeport, Connecticut"
+ },
+ {
+  "id": "ct-gt",
+  "name": "Greenwich Time",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_GT"
+  },
+  "location": "Greenwich, Connecticut"
+ },
+ {
+  "id": "ct-hc",
+  "name": "Hartford Courant",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_HC"
+  },
+  "location": "Hartford, Connecticut"
+ },
+ {
+  "id": "ct-ji",
+  "name": "Journal Inquirer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_JI"
+  },
+  "location": "Manchester, Connecticut"
+ },
+ {
+  "id": "ct-mp",
+  "name": "The Middletown Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_MP"
+  },
+  "location": "Middletown, Connecticut"
+ },
+ {
+  "id": "ct-nb",
+  "name": "Norwich Bulletin",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_NB"
+  },
+  "location": "Norwich, Connecticut"
+ },
+ {
+  "id": "ct-nhr",
+  "name": "New Haven Register",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_NHR"
+  },
+  "location": "New Haven, Connecticut"
+ },
+ {
+  "id": "ct-nt",
+  "name": "The News-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_NT"
+  },
+  "location": "Danbury, Connecticut"
+ },
+ {
+  "id": "ct-ra",
+  "name": "Republican-American",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_RA"
+  },
+  "location": "Waterbury, Connecticut"
+ },
+ {
+  "id": "ct-rc",
+  "name": "The Register Citizen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_RC"
+  },
+  "location": "Torrington, Connecticut"
+ },
+ {
+  "id": "ct-rj",
+  "name": "Record-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_RJ"
+  },
+  "location": "Meriden, Connecticut"
+ },
+ {
+  "id": "ct-ta",
+  "name": "Stamford Advocate",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_TA"
+  },
+  "location": "Stamford, Connecticut"
+ },
+ {
+  "id": "ct-td",
+  "name": "The Day",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_TD"
+  },
+  "location": "New London, Connecticut"
+ },
+ {
+  "id": "ct-th",
+  "name": "The Norwalk Hour",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CT_TH"
+  },
+  "location": "Norwalk, Connecticut"
+ },
+ {
+  "id": "cyp-phil",
+  "name": "Phileleftheros",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "CYP_PHIL"
+  },
+  "location": "Nicosia, Cyprus"
+ },
+ {
+  "id": "dc-hill",
+  "name": "The Hill",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "DC_HILL"
+  },
+  "location": "Washington, District of Columbia"
+ },
+ {
+  "id": "dc-ss",
+  "name": "Stars and Stripes",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "DC_SS"
+  },
+  "location": "Washington, District of Columbia"
+ },
+ {
+  "id": "dc-wp",
+  "name": "The Washington Post",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "DC_WP"
+  },
+  "location": "Washington, District of Columbia"
+ },
+ {
+  "id": "dc-wt",
+  "name": "The Washington Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "DC_WT"
+  },
+  "location": "Washington, District of Columbia"
+ },
+ {
+  "id": "de-nj",
+  "name": "The News Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "DE_NJ"
+  },
+  "location": "Wilmington, Delaware"
+ },
+ {
+  "id": "den-pol",
+  "name": "Politiken",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "DEN_POL"
+  },
+  "location": "Copenhagen, Denmark"
+ },
+ {
+  "id": "est-slo",
+  "name": "\u00d5htuleht",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "EST_SLO"
+  },
+  "location": "Tallinn, Estonia"
+ },
+ {
+  "id": "fiji-ft",
+  "name": "The Fiji Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FIJI_FT"
+  },
+  "location": "Suva, Fiji"
+ },
+ {
+  "id": "fl-bh",
+  "name": "The Bradenton Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_BH"
+  },
+  "location": "Bradenton, Florida"
+ },
+ {
+  "id": "fl-dbnj",
+  "name": "The Daytona Beach News-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_DBNJ"
+  },
+  "location": "Daytona Beach, Florida"
+ },
+ {
+  "id": "fl-dc",
+  "name": "The Daily Commercial",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_DC"
+  },
+  "location": "Leesburg, Florida"
+ },
+ {
+  "id": "fl-enh",
+  "name": "El Nuevo Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_ENH"
+  },
+  "location": "Miami, Florida"
+ },
+ {
+  "id": "fl-ft",
+  "name": "Florida Today",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_FT"
+  },
+  "location": "Melbourne, Florida"
+ },
+ {
+  "id": "fl-ftu",
+  "name": "The Florida Times-Union",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_FTU"
+  },
+  "location": "Jacksonville, Florida"
+ },
+ {
+  "id": "fl-gs",
+  "name": "The Gainesville Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_GS"
+  },
+  "location": "Gainesville, Florida"
+ },
+ {
+  "id": "fl-mh",
+  "name": "The Miami Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_MH"
+  },
+  "location": "Miami, Florida"
+ },
+ {
+  "id": "fl-nc",
+  "name": "News Chief",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_NC"
+  },
+  "location": "Winter Haven, Florida"
+ },
+ {
+  "id": "fl-ndn",
+  "name": "Naples Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_NDN"
+  },
+  "location": "Naples, Florida"
+ },
+ {
+  "id": "fl-nfdn",
+  "name": "Northwest Florida Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_NFDN"
+  },
+  "location": "Fort Walton Beach, Florida"
+ },
+ {
+  "id": "fl-nh",
+  "name": "News Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_NH"
+  },
+  "location": "Panama City, Florida"
+ },
+ {
+  "id": "fl-np",
+  "name": "The News-Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_NP"
+  },
+  "location": "Fort Myers, Florida"
+ },
+ {
+  "id": "fl-os",
+  "name": "Orlando Sentinel",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_OS"
+  },
+  "location": "Orlando, Florida"
+ },
+ {
+  "id": "fl-pbp",
+  "name": "The Palm Beach Post",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_PBP"
+  },
+  "location": "West Palm Beach, Florida"
+ },
+ {
+  "id": "fl-pnj",
+  "name": "Pensacola News Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_PNJ"
+  },
+  "location": "Pensacola, Florida"
+ },
+ {
+  "id": "fl-sar",
+  "name": "The St. Augustine Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_SAR"
+  },
+  "location": "St. Augustine, Florida"
+ },
+ {
+  "id": "fl-sb",
+  "name": "Ocala StarBanner",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_SB"
+  },
+  "location": "Ocala, Florida"
+ },
+ {
+  "id": "fl-sht",
+  "name": "Sarasota Herald-Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_SHT"
+  },
+  "location": "Sarasota, Florida"
+ },
+ {
+  "id": "fl-ss",
+  "name": "Sun Sentinel",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_SS"
+  },
+  "location": "Ft. Lauderdale, Florida"
+ },
+ {
+  "id": "fl-tb",
+  "name": "TBT*",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_TB"
+  },
+  "location": "St. Petersburg, Florida"
+ },
+ {
+  "id": "fl-td",
+  "name": "Tallahassee Democrat",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_TD"
+  },
+  "location": "Tallahassee, Florida"
+ },
+ {
+  "id": "fl-times",
+  "name": "Tampa Bay Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_TIMES"
+  },
+  "location": "St. Petersburg, Florida"
+ },
+ {
+  "id": "fl-tl",
+  "name": "The Ledger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_TL"
+  },
+  "location": "Lakeland, Florida"
+ },
+ {
+  "id": "fl-vds",
+  "name": "The Villages Daily Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "FL_VDS"
+  },
+  "location": "The Villages, Florida"
+ },
+ {
+  "id": "ga-abh",
+  "name": "Athens Banner-Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GA_ABH"
+  },
+  "location": "Athens, Georgia"
+ },
+ {
+  "id": "ga-ac",
+  "name": "The Augusta Chronicle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GA_AC"
+  },
+  "location": "Augusta, Georgia"
+ },
+ {
+  "id": "ga-ajc",
+  "name": "The Atlanta Journal-Constitution",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GA_AJC"
+  },
+  "location": "Atlanta, Georgia"
+ },
+ {
+  "id": "ga-le",
+  "name": "Ledger-Enquirer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GA_LE"
+  },
+  "location": "Columbus, Georgia"
+ },
+ {
+  "id": "ga-rnt",
+  "name": "Rome News-Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GA_RNT"
+  },
+  "location": "Rome, Georgia"
+ },
+ {
+  "id": "ga-smn",
+  "name": "Savannah Morning News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GA_SMN"
+  },
+  "location": "Savannah, Georgia"
+ },
+ {
+  "id": "ga-tt",
+  "name": "The Telegraph",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GA_TT"
+  },
+  "location": "Macon, Georgia"
+ },
+ {
+  "id": "geor-tm",
+  "name": "The Messenger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GEOR_TM"
+  },
+  "location": "Tbilisi, Georgia"
+ },
+ {
+  "id": "ger-aa",
+  "name": "Augsburger Allgemeine",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GER_AA"
+  },
+  "location": "Augsburg, Germany"
+ },
+ {
+  "id": "ger-faz",
+  "name": "Frankfurter Allgemeine Zeitung",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GER_FAZ"
+  },
+  "location": "Frankfurt, Germany"
+ },
+ {
+  "id": "ger-mm",
+  "name": "Mannheimer Morgen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GER_MM"
+  },
+  "location": "Mannheim, Germany"
+ },
+ {
+  "id": "ger-nw",
+  "name": "Neue Westf\u00e4lische",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GER_NW"
+  },
+  "location": "Bielefeld, Germany"
+ },
+ {
+  "id": "ger-pnp",
+  "name": "Passauer Neue Presse",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GER_PNP"
+  },
+  "location": "Passau, Germany"
+ },
+ {
+  "id": "ger-rz",
+  "name": "Rhein-Zeitung",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GER_RZ"
+  },
+  "location": "Koblenz, Germany"
+ },
+ {
+  "id": "ger-taz",
+  "name": "Die Tageszeitung",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GER_TAZ"
+  },
+  "location": "Berlin, Germany"
+ },
+ {
+  "id": "gree-kn",
+  "name": "Kontra News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GREE_KN"
+  },
+  "location": "Athens, Greece"
+ },
+ {
+  "id": "gree-nk",
+  "name": "Nea Kriti",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GREE_NK"
+  },
+  "location": "Heraklion, Greece"
+ },
+ {
+  "id": "gree-tax",
+  "name": "Taxydromos",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "GREE_TAX"
+  },
+  "location": "Volos, Greece"
+ },
+ {
+  "id": "ia-dr",
+  "name": "The Des Moines Register",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IA_DR"
+  },
+  "location": "Des Moines, Iowa"
+ },
+ {
+  "id": "ia-pc",
+  "name": "Iowa City Press-Citizen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IA_PC"
+  },
+  "location": "Iowa City, Iowa"
+ },
+ {
+  "id": "ia-scj",
+  "name": "Sioux City Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IA_SCJ"
+  },
+  "location": "Sioux City, Iowa"
+ },
+ {
+  "id": "ia-tg",
+  "name": "The Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IA_TG"
+  },
+  "location": "Cedar Rapids, Iowa"
+ },
+ {
+  "id": "ia-tt",
+  "name": "Ames Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IA_TT"
+  },
+  "location": "Ames, Iowa"
+ },
+ {
+  "id": "ia-wbt",
+  "name": "West Branch Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IA_WBT"
+  },
+  "location": "West Branch, Iowa"
+ },
+ {
+  "id": "id-bcdb",
+  "name": "Bonner County Daily Bee",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_BCDB"
+  },
+  "location": "Sandpoint, Idaho"
+ },
+ {
+  "id": "id-bfh",
+  "name": "Bonners Ferry Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_BFH"
+  },
+  "location": "Bonners Ferry, Idaho"
+ },
+ {
+  "id": "id-cdap",
+  "name": "Coeur d\u2019Alene Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_CDAP"
+  },
+  "location": "Coeur d\u2019Alene, Idaho"
+ },
+ {
+  "id": "id-is",
+  "name": "Idaho Statesman",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_IS"
+  },
+  "location": "Boise, Idaho"
+ },
+ {
+  "id": "id-lmt",
+  "name": "The Lewiston Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_LMT"
+  },
+  "location": "Lewiston, Idaho"
+ },
+ {
+  "id": "id-mpdn",
+  "name": "Moscow-Pullman Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_MPDN"
+  },
+  "location": "Moscow, Idaho"
+ },
+ {
+  "id": "id-snp",
+  "name": "Shoshone News-Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_SNP"
+  },
+  "location": "Osburn, Idaho"
+ },
+ {
+  "id": "id-tn",
+  "name": "Times-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ID_TN"
+  },
+  "location": "Twin Falls, Idaho"
+ },
+ {
+  "id": "il-bn",
+  "name": "The Beacon-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_BN"
+  },
+  "location": "Aurora, Illinois"
+ },
+ {
+  "id": "il-bnd",
+  "name": "Belleville News-Democrat",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_BND"
+  },
+  "location": "Belleville, Illinois"
+ },
+ {
+  "id": "il-cn",
+  "name": "The Courier-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_CN"
+  },
+  "location": "Elgin, Illinois"
+ },
+ {
+  "id": "il-cst",
+  "name": "Chicago Sun-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_CST"
+  },
+  "location": "Chicago, Illinois"
+ },
+ {
+  "id": "il-ct",
+  "name": "Chicago Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_CT"
+  },
+  "location": "Chicago, Illinois"
+ },
+ {
+  "id": "il-dcn",
+  "name": "Commercial-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_DCN"
+  },
+  "location": "Danville, Illinois"
+ },
+ {
+  "id": "il-dh",
+  "name": "Daily Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_DH"
+  },
+  "location": "Suburban Chicago, Illinois"
+ },
+ {
+  "id": "il-dhr",
+  "name": "Decatur Herald & Review",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_DHR"
+  },
+  "location": "Decatur, Illinois"
+ },
+ {
+  "id": "il-ds",
+  "name": "Daily Southtown",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_DS"
+  },
+  "location": "Tinley Park, Illinois"
+ },
+ {
+  "id": "il-edn",
+  "name": "Effingham Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_EDN"
+  },
+  "location": "Effingham, Illinois"
+ },
+ {
+  "id": "il-fjs",
+  "name": "The Journal Standard",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_FJS"
+  },
+  "location": "Freeport, Illinois"
+ },
+ {
+  "id": "il-jg",
+  "name": "Journal Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_JG"
+  },
+  "location": "Mattoon, Illinois"
+ },
+ {
+  "id": "il-js",
+  "name": "Journal Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_JS"
+  },
+  "location": "Peoria, Illinois"
+ },
+ {
+  "id": "il-lc",
+  "name": "The Courier",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_LC"
+  },
+  "location": "Lincoln, Illinois"
+ },
+ {
+  "id": "il-lcns",
+  "name": "Lake County News-Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_LCNS"
+  },
+  "location": "Waukegan, Illinois"
+ },
+ {
+  "id": "il-ns",
+  "name": "The Naperville Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_NS"
+  },
+  "location": "Naperville, Illinois"
+ },
+ {
+  "id": "il-pdl",
+  "name": "Daily Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_PDL"
+  },
+  "location": "Pontiac, Illinois"
+ },
+ {
+  "id": "il-rm",
+  "name": "The Register-Mail",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_RM"
+  },
+  "location": "Galesburg, Illinois"
+ },
+ {
+  "id": "il-rrs",
+  "name": "Rockford Register Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_RRS"
+  },
+  "location": "Rockford, Illinois"
+ },
+ {
+  "id": "il-sjr",
+  "name": "The State Journal Register",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_SJR"
+  },
+  "location": "Springfield, Illinois"
+ },
+ {
+  "id": "il-th",
+  "name": "The Hinsdalean",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_TH"
+  },
+  "location": "Hinsdale, Illinois"
+ },
+ {
+  "id": "il-tp",
+  "name": "The Pantagraph",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IL_TP"
+  },
+  "location": "Bloomington, Illinois"
+ },
+ {
+  "id": "in-ecp",
+  "name": "Evansville Courier & Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_ECP"
+  },
+  "location": "Evansville, Indiana"
+ },
+ {
+  "id": "in-gdn",
+  "name": "Greensburg Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_GDN"
+  },
+  "location": "Greensburg, Indiana"
+ },
+ {
+  "id": "in-hb",
+  "name": "The Herald Bulletin",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_HB"
+  },
+  "location": "Anderson, Indiana"
+ },
+ {
+  "id": "in-ht",
+  "name": "The Herald-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_HT"
+  },
+  "location": "Bloomington, Indiana"
+ },
+ {
+  "id": "in-ids",
+  "name": "Indiana Daily Student",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_IDS"
+  },
+  "location": "Bloomington, Indiana"
+ },
+ {
+  "id": "in-is",
+  "name": "The Indianapolis Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_IS"
+  },
+  "location": "Indianapolis, Indiana"
+ },
+ {
+  "id": "in-jc",
+  "name": "Journal & Courier",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_JC"
+  },
+  "location": "Lafayette, Indiana"
+ },
+ {
+  "id": "in-jg",
+  "name": "The Journal Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_JG"
+  },
+  "location": "Fort Wayne, Indiana"
+ },
+ {
+  "id": "in-kt",
+  "name": "Kokomo Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_KT"
+  },
+  "location": "Kokomo, Indiana"
+ },
+ {
+  "id": "in-nsda",
+  "name": "Newsdanka",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_NSDA"
+  },
+  "location": "Mumbai, India"
+ },
+ {
+  "id": "in-pha",
+  "name": "Pharos-Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_PHA"
+  },
+  "location": "Logansport, Indiana"
+ },
+ {
+  "id": "in-pi",
+  "name": "Palladium-Item",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_PI"
+  },
+  "location": "Richmond, Indiana"
+ },
+ {
+  "id": "in-pt",
+  "name": "Post-Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_PT"
+  },
+  "location": "Merrillville, Indiana"
+ },
+ {
+  "id": "in-rt",
+  "name": "The Reporter Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_RT"
+  },
+  "location": "Martinsville, Indiana"
+ },
+ {
+  "id": "in-sbt",
+  "name": "South Bend Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_SBT"
+  },
+  "location": "South Bend, Indiana"
+ },
+ {
+  "id": "in-sp",
+  "name": "The Star Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_SP"
+  },
+  "location": "Muncie, Indiana"
+ },
+ {
+  "id": "in-tm",
+  "name": "Times-Mail",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_TM"
+  },
+  "location": "Bedford, Indiana"
+ },
+ {
+  "id": "in-ts",
+  "name": "The Tribune-Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_TS"
+  },
+  "location": "Terre Haute, Indiana"
+ },
+ {
+  "id": "in-tt",
+  "name": "The Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IN_TT"
+  },
+  "location": "Munster, Indiana"
+ },
+ {
+  "id": "ind-nie",
+  "name": "New Indian Express",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IND_NIE"
+  },
+  "location": "Chennai, India"
+ },
+ {
+  "id": "ind-prahm",
+  "name": "Prahaar - Mumbai",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IND_PRAHM"
+  },
+  "location": "Mumbai, India"
+ },
+ {
+  "id": "ind-prahr",
+  "name": "Prahaar - Ratnagiri",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IND_PRAHR"
+  },
+  "location": "Ratnagiri, India"
+ },
+ {
+  "id": "ind-prahs",
+  "name": "Prahaar - Sindhudurg",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IND_PRAHS"
+  },
+  "location": "Sindhudurg, India"
+ },
+ {
+  "id": "ind-ss",
+  "name": "The Sunday Standard",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IND_SS"
+  },
+  "location": "New Delhi, India"
+ },
+ {
+  "id": "irl-ie",
+  "name": "Irish Examiner",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IRL_IE"
+  },
+  "location": "Cork, Ireland"
+ },
+ {
+  "id": "irl-it",
+  "name": "Irish Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "IRL_IT"
+  },
+  "location": "Dublin, Ireland"
+ },
+ {
+  "id": "isr-ha",
+  "name": "Haaretz - English Edition",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ISR_HA"
+  },
+  "location": "Tel Aviv, Israel"
+ },
+ {
+  "id": "isr-hahe",
+  "name": "Haaretz - Hebrew Edition",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ISR_HAHE"
+  },
+  "location": "Tel Aviv, Israel"
+ },
+ {
+  "id": "isr-jp",
+  "name": "The Jerusalem Post",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ISR_JP"
+  },
+  "location": "Jerusalem, Israel"
+ },
+ {
+  "id": "isr-ya",
+  "name": "Yedioth Ahronoth",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ISR_YA"
+  }
+ },
+ {
+  "id": "ita-ls",
+  "name": "La Stampa",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ITA_LS"
+  },
+  "location": "Torino, Italy"
+ },
+ {
+  "id": "kos-kd",
+  "name": "Koha Ditore",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KOS_KD"
+  },
+  "location": "Prishtina, Kosovo"
+ },
+ {
+  "id": "ks-hn",
+  "name": "The Hutchinson News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KS_HN"
+  },
+  "location": "Hutchinson, Kansas"
+ },
+ {
+  "id": "ks-ljw",
+  "name": "Lawrence Journal-World",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KS_LJW"
+  },
+  "location": "Lawrence, Kansas"
+ },
+ {
+  "id": "ks-sj",
+  "name": "Salina Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KS_SJ"
+  },
+  "location": "Salina, Kansas"
+ },
+ {
+  "id": "ks-tcj",
+  "name": "The Topeka Capital-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KS_TCJ"
+  },
+  "location": "Topeka, Kansas"
+ },
+ {
+  "id": "ks-we",
+  "name": "The Wichita Eagle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KS_WE"
+  },
+  "location": "Wichita, Kansas"
+ },
+ {
+  "id": "kuw-kt",
+  "name": "Kuwait Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KUW_KT"
+  },
+  "location": "Kuwait, Kuwait"
+ },
+ {
+  "id": "ky-cj",
+  "name": "The Courier-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KY_CJ"
+  },
+  "location": "Louisville, Kentucky"
+ },
+ {
+  "id": "ky-dn",
+  "name": "Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KY_DN"
+  },
+  "location": "Bowling Green, Kentucky"
+ },
+ {
+  "id": "ky-lhl",
+  "name": "Lexington Herald-Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KY_LHL"
+  },
+  "location": "Lexington, Kentucky"
+ },
+ {
+  "id": "ky-tg",
+  "name": "The Gleaner",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "KY_TG"
+  },
+  "location": "Henderson, Kentucky"
+ },
+ {
+  "id": "la-aca",
+  "name": "The Acadiana Advocate",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_ACA"
+  },
+  "location": "Lafayette, Louisiana"
+ },
+ {
+  "id": "la-da",
+  "name": "The Daily Advertiser",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_DA"
+  },
+  "location": "Lafayette, Louisiana"
+ },
+ {
+  "id": "la-dc",
+  "name": "Daily Comet",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_DC"
+  },
+  "location": "Thibodaux, Louisiana"
+ },
+ {
+  "id": "la-dw",
+  "name": "Daily World",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_DW"
+  },
+  "location": "Opelousas, Louisiana"
+ },
+ {
+  "id": "la-ns",
+  "name": "The News-Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_NS"
+  },
+  "location": "Monroe, Louisiana"
+ },
+ {
+  "id": "la-ta",
+  "name": "The Advocate",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_TA"
+  },
+  "location": "Baton Rouge, Louisiana"
+ },
+ {
+  "id": "la-tc",
+  "name": "The Courier",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_TC"
+  },
+  "location": "Houma, Louisiana"
+ },
+ {
+  "id": "la-tpnoa",
+  "name": "The Times-Picayune/The New Orleans Advocate",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_TPNOA"
+  },
+  "location": "New Orleans, Louisiana"
+ },
+ {
+  "id": "la-tt",
+  "name": "The Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_TT"
+  },
+  "location": "Shreveport, Louisiana"
+ },
+ {
+  "id": "la-ttt",
+  "name": "The Town Talk",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LA_TTT"
+  },
+  "location": "Alexandria, Louisiana"
+ },
+ {
+  "id": "lith-lr",
+  "name": "Lietuvos Rytas",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LITH_LR"
+  },
+  "location": "Vilnius, Lithuania"
+ },
+ {
+  "id": "lux-lw",
+  "name": "Luxemburger Wort",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "LUX_LW"
+  },
+  "location": "Luxembourg City, Luxembourg"
+ },
+ {
+  "id": "ma-cct",
+  "name": "Cape Cod Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_CCT"
+  },
+  "location": "Hyannis, Massachusetts"
+ },
+ {
+  "id": "ma-et",
+  "name": "The Eagle-Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_ET"
+  },
+  "location": "North Andover, Massachusetts"
+ },
+ {
+  "id": "ma-gn",
+  "name": "The Gardner News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_GN"
+  },
+  "location": "Gardner, Massachusetts"
+ },
+ {
+  "id": "ma-hn",
+  "name": "The Herald News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_HN"
+  },
+  "location": "Fall River, Massachusetts"
+ },
+ {
+  "id": "ma-mdn",
+  "name": "The Milford Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_MDN"
+  },
+  "location": "Milford, Massachusetts"
+ },
+ {
+  "id": "ma-mwdn",
+  "name": "Metro West Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_MWDN"
+  },
+  "location": "Framingham, Massachusetts"
+ },
+ {
+  "id": "ma-pl",
+  "name": "The Patriot Ledger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_PL"
+  },
+  "location": "Quincy, Massachusetts"
+ },
+ {
+  "id": "ma-sn",
+  "name": "The Salem News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_SN"
+  },
+  "location": "Beverly, Massachusetts"
+ },
+ {
+  "id": "ma-st",
+  "name": "The Standard-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_ST"
+  },
+  "location": "New Bedford, Massachusetts"
+ },
+ {
+  "id": "ma-tdg",
+  "name": "The Taunton Daily Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_TDG"
+  },
+  "location": "Taunton, Massachusetts"
+ },
+ {
+  "id": "ma-te",
+  "name": "The Enterprise",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_TE"
+  },
+  "location": "Brockton, Massachusetts"
+ },
+ {
+  "id": "ma-tg",
+  "name": "Telegram & Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_TG"
+  },
+  "location": "Worcester, Massachusetts"
+ },
+ {
+  "id": "ma-tr",
+  "name": "The Republican",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MA_TR"
+  },
+  "location": "Springfield, Massachusetts"
+ },
+ {
+  "id": "mal-star",
+  "name": "Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MAL_STAR"
+  },
+  "location": "Kuala Lumpur, Malaysia"
+ },
+ {
+  "id": "md-cct",
+  "name": "Carroll County Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MD_CCT"
+  },
+  "location": "Westminster, Maryland"
+ },
+ {
+  "id": "md-dt",
+  "name": "The Daily Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MD_DT"
+  },
+  "location": "Salisbury, Maryland"
+ },
+ {
+  "id": "md-hm",
+  "name": "The Herald-Mail",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MD_HM"
+  },
+  "location": "Hagerstown, Maryland"
+ },
+ {
+  "id": "md-tc",
+  "name": "The Capital",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MD_TC"
+  },
+  "location": "Annapolis, Maryland"
+ },
+ {
+  "id": "md-ts",
+  "name": "The Baltimore Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MD_TS"
+  },
+  "location": "Baltimore, Maryland"
+ },
+ {
+  "id": "me-kj",
+  "name": "Kennebec Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ME_KJ"
+  },
+  "location": "Augusta, Maine"
+ },
+ {
+  "id": "me-ms",
+  "name": "Morning Sentinel",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ME_MS"
+  },
+  "location": "Waterville, Maine"
+ },
+ {
+  "id": "me-pph",
+  "name": "Portland Press Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ME_PPH"
+  },
+  "location": "Portland, Maine"
+ },
+ {
+  "id": "mex-ddy",
+  "name": "Diario de Yucat\u00e1n",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_DDY"
+  },
+  "location": "M\u00e9rida, Mexico"
+ },
+ {
+  "id": "mex-ehds",
+  "name": "El Heraldo de Saltillo",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_EHDS"
+  },
+  "location": "Saltillo, Mexico"
+ },
+ {
+  "id": "mex-eu",
+  "name": "El Universal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_EU"
+  },
+  "location": "Mexico City, Mexico"
+ },
+ {
+  "id": "mex-inf",
+  "name": "El Informador",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_INF"
+  },
+  "location": "Guadalajara, Mexico"
+ },
+ {
+  "id": "mex-lom",
+  "name": "Milenio Laguna",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_LOM"
+  },
+  "location": "Torreon, Mexico"
+ },
+ {
+  "id": "mex-lrdm",
+  "name": "La Raz\u00f3n de M\u00e9xico",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_LRDM"
+  },
+  "location": "Mexico City, Mexico"
+ },
+ {
+  "id": "mex-mddm",
+  "name": "Milenio Monterrey",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_MDDM"
+  },
+  "location": "Monterrey, Mexico"
+ },
+ {
+  "id": "mex-medm",
+  "name": "Milenio Estado de M\u00e9xico",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_MEDM"
+  },
+  "location": "Toluca, Mexico"
+ },
+ {
+  "id": "mex-mh",
+  "name": "Milenio Hidalgo",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_MH"
+  },
+  "location": "Pachuca, Mexico"
+ },
+ {
+  "id": "mex-mil",
+  "name": "Milenio Diario",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_MIL"
+  },
+  "location": "Mexico City, Mexico"
+ },
+ {
+  "id": "mex-ml",
+  "name": "Milenio Le\u00f3n",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_ML"
+  },
+  "location": "Le\u00f3n, Mexico"
+ },
+ {
+  "id": "mex-mt",
+  "name": "Milenio Tamaulipas",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_MT"
+  },
+  "location": "Tampico, Mexico"
+ },
+ {
+  "id": "mex-pm",
+  "name": "Milenio Jalisco",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_PM"
+  },
+  "location": "Guadalajara, Mexico"
+ },
+ {
+  "id": "mex-ref",
+  "name": "Reforma",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_REF"
+  },
+  "location": "Mexico City, Mexico"
+ },
+ {
+  "id": "mex-van",
+  "name": "Vanguardia",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MEX_VAN"
+  },
+  "location": "Saltillo, Mexico"
+ },
+ {
+  "id": "mi-adt",
+  "name": "The Daily Telegram",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_ADT"
+  },
+  "location": "Adrian, Michigan"
+ },
+ {
+  "id": "mi-bce",
+  "name": "Battle Creek Enquirer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_BCE"
+  },
+  "location": "Battle Creek, Michigan"
+ },
+ {
+  "id": "mi-cdt",
+  "name": "Cheboygan Daily Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_CDT"
+  },
+  "location": "Cheboygan, Michigan"
+ },
+ {
+  "id": "mi-dfp",
+  "name": "Detroit Free Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_DFP"
+  },
+  "location": "Detroit, Michigan"
+ },
+ {
+  "id": "mi-dn",
+  "name": "The Detroit News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_DN"
+  },
+  "location": "Detroit, Michigan"
+ },
+ {
+  "id": "mi-dr",
+  "name": "The Daily Reporter",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_DR"
+  },
+  "location": "Coldwater, Michigan"
+ },
+ {
+  "id": "mi-en",
+  "name": "The Sault News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_EN"
+  },
+  "location": "Sault Ste Marie, Michigan"
+ },
+ {
+  "id": "mi-grp",
+  "name": "The Grand Rapids Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_GRP"
+  },
+  "location": "Grand Rapids, Michigan"
+ },
+ {
+  "id": "mi-hdn",
+  "name": "The Hillsdale Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_HDN"
+  },
+  "location": "Hillsdale, Michigan"
+ },
+ {
+  "id": "mi-jcp",
+  "name": "Jackson Citizen Patriot",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_JCP"
+  },
+  "location": "Jackson, Michigan"
+ },
+ {
+  "id": "mi-kg",
+  "name": "Kalamazoo Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_KG"
+  },
+  "location": "Kalamazoo, Michigan"
+ },
+ {
+  "id": "mi-lsj",
+  "name": "Lansing State Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_LSJ"
+  },
+  "location": "Lansing, Michigan"
+ },
+ {
+  "id": "mi-mc",
+  "name": "The Muskegon Chronicle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_MC"
+  },
+  "location": "Muskegon, Michigan"
+ },
+ {
+  "id": "mi-men",
+  "name": "Monroe News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_MEN"
+  },
+  "location": "Monroe, Michigan"
+ },
+ {
+  "id": "mi-pnr",
+  "name": "Petoskey News-Review",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_PNR"
+  },
+  "location": "Petoskey, Michigan"
+ },
+ {
+  "id": "mi-sj",
+  "name": "Sturgis Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_SJ"
+  },
+  "location": "Sturgis, Michigan"
+ },
+ {
+  "id": "mi-th",
+  "name": "Times Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MI_TH"
+  },
+  "location": "Port Huron, Michigan"
+ },
+ {
+  "id": "mn-bd",
+  "name": "Brainerd Dispatch",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MN_BD"
+  },
+  "location": "Brainerd, Minnesota"
+ },
+ {
+  "id": "mn-bp",
+  "name": "Bemidji Pioneer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MN_BP"
+  },
+  "location": "Bemidji, Minnesota"
+ },
+ {
+  "id": "mn-pp",
+  "name": "Pioneer Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MN_PP"
+  },
+  "location": "St. Paul, Minnesota"
+ },
+ {
+  "id": "mn-sct",
+  "name": "St. Cloud Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MN_SCT"
+  },
+  "location": "St. Cloud, Minnesota"
+ },
+ {
+  "id": "mn-st",
+  "name": "Star Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MN_ST"
+  },
+  "location": "Minneapolis, Minnesota"
+ },
+ {
+  "id": "mn-wct",
+  "name": "West Central Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MN_WCT"
+  },
+  "location": "Willmar, Minnesota"
+ },
+ {
+  "id": "mo-cdt",
+  "name": "Columbia Daily Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MO_CDT"
+  },
+  "location": "Columbia, Missouri"
+ },
+ {
+  "id": "mo-jg",
+  "name": "The Joplin Globe",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MO_JG"
+  },
+  "location": "Joplin, Missouri"
+ },
+ {
+  "id": "mo-kcs",
+  "name": "The Kansas City Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MO_KCS"
+  },
+  "location": "Kansas City, Missouri"
+ },
+ {
+  "id": "mo-nl",
+  "name": "News-Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MO_NL"
+  },
+  "location": "Springfield, Missouri"
+ },
+ {
+  "id": "mo-nnl",
+  "name": "Nodaway News Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MO_NNL"
+  },
+  "location": "Maryville, Missouri"
+ },
+ {
+  "id": "mo-slpd",
+  "name": "St. Louis Post-Dispatch",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MO_SLPD"
+  },
+  "location": "St. Louis, Missouri"
+ },
+ {
+  "id": "mor-aa",
+  "name": "Alahdath Almaghrebia",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MOR_AA"
+  },
+  "location": "Casablanca, Morocco"
+ },
+ {
+  "id": "ms-cl",
+  "name": "The Clarion-Ledger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MS_CL"
+  },
+  "location": "Jackson, Mississippi"
+ },
+ {
+  "id": "ms-gc",
+  "name": "Greenwood Commonwealth",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MS_GC"
+  },
+  "location": "Greenwood, Mississippi"
+ },
+ {
+  "id": "ms-ha",
+  "name": "Hattiesburg American",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MS_HA"
+  },
+  "location": "Hattiesburg, Mississippi"
+ },
+ {
+  "id": "ms-sh",
+  "name": "Sun Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MS_SH"
+  },
+  "location": "Biloxi, Mississippi"
+ },
+ {
+  "id": "mt-gft",
+  "name": "Great Falls Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MT_GFT"
+  },
+  "location": "Great Falls, Montana"
+ },
+ {
+  "id": "mt-ir",
+  "name": "Independent Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MT_IR"
+  },
+  "location": "Helena, Montana"
+ },
+ {
+  "id": "mt-mis",
+  "name": "Missoulian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MT_MIS"
+  },
+  "location": "Missoula, Montana"
+ },
+ {
+  "id": "mt-ms",
+  "name": "Montana Standard",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MT_MS"
+  },
+  "location": "Butte, Montana"
+ },
+ {
+  "id": "mt-rr",
+  "name": "Ravalli Republic",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "MT_RR"
+  },
+  "location": "Hamilton, Montana"
+ },
+ {
+  "id": "nc-act",
+  "name": "Asheville Citizen-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_ACT"
+  },
+  "location": "Asheville, North Carolina"
+ },
+ {
+  "id": "nc-co",
+  "name": "The Charlotte Observer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_CO"
+  },
+  "location": "Charlotte, North Carolina"
+ },
+ {
+  "id": "nc-fo",
+  "name": "The Fayetteville Observer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_FO"
+  },
+  "location": "Fayetteville, North Carolina"
+ },
+ {
+  "id": "nc-gg",
+  "name": "Gaston Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_GG"
+  },
+  "location": "Gastonia, North Carolina"
+ },
+ {
+  "id": "nc-hdr",
+  "name": "Hickory Daily Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_HDR"
+  },
+  "location": "Hickory, North Carolina"
+ },
+ {
+  "id": "nc-it",
+  "name": "The Independent Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_IT"
+  },
+  "location": "Kannapolis, North Carolina"
+ },
+ {
+  "id": "nc-mn",
+  "name": "The McDowell News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_MN"
+  },
+  "location": "Marion, North Carolina"
+ },
+ {
+  "id": "nc-mt",
+  "name": "Mooresville Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_MT"
+  },
+  "location": "Mooresville, North Carolina"
+ },
+ {
+  "id": "nc-nh",
+  "name": "The News Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_NH"
+  },
+  "location": "Morganton, North Carolina"
+ },
+ {
+  "id": "nc-no",
+  "name": "The News & Observer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_NO"
+  },
+  "location": "Raleigh, North Carolina"
+ },
+ {
+  "id": "nc-nr",
+  "name": "News & Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_NR"
+  },
+  "location": "Greensboro, North Carolina"
+ },
+ {
+  "id": "nc-srl",
+  "name": "Statesville Record & Landmark",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_SRL"
+  },
+  "location": "Statesville, North Carolina"
+ },
+ {
+  "id": "nc-star",
+  "name": "Star News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_STAR"
+  },
+  "location": "Wilmington, North Carolina"
+ },
+ {
+  "id": "nc-tn",
+  "name": "Times-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_TN"
+  },
+  "location": "Hendersonville, North Carolina"
+ },
+ {
+  "id": "nc-ts",
+  "name": "The Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_TS"
+  },
+  "location": "Shelby, North Carolina"
+ },
+ {
+  "id": "nc-wsj",
+  "name": "Winston-Salem Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NC_WSJ"
+  },
+  "location": "Winston-Salem, North Carolina"
+ },
+ {
+  "id": "nd-dp",
+  "name": "The Dickinson Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ND_DP"
+  },
+  "location": "Dickinson, North Dakota"
+ },
+ {
+  "id": "nd-gfh",
+  "name": "Grand Forks Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ND_GFH"
+  },
+  "location": "Grand Forks, North Dakota"
+ },
+ {
+  "id": "nd-js",
+  "name": "The Jamestown Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ND_JS"
+  },
+  "location": "Jamestown, North Dakota"
+ },
+ {
+  "id": "nd-tf",
+  "name": "The Forum",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ND_TF"
+  },
+  "location": "Fargo, North Dakota"
+ },
+ {
+  "id": "ne-bds",
+  "name": "Beatrice Daily Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NE_BDS"
+  },
+  "location": "Beatrice, Nebraska"
+ },
+ {
+  "id": "ne-ct",
+  "name": "Columbus Telegram",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NE_CT"
+  },
+  "location": "Columbus, Nebraska"
+ },
+ {
+  "id": "ne-ft",
+  "name": "Fremont Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NE_FT"
+  },
+  "location": "Fremont, Nebraska"
+ },
+ {
+  "id": "ne-ljs",
+  "name": "Lincoln Journal Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NE_LJS"
+  },
+  "location": "Lincoln, Nebraska"
+ },
+ {
+  "id": "ne-owh",
+  "name": "Omaha World-Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NE_OWH"
+  },
+  "location": "Omaha, Nebraska"
+ },
+ {
+  "id": "net-ad2",
+  "name": "AD",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NET_AD2"
+  },
+  "location": "Rotterdam, Netherlands"
+ },
+ {
+  "id": "net-dv",
+  "name": "de Volkskrant",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NET_DV"
+  },
+  "location": "Amsterdam, Netherlands"
+ },
+ {
+  "id": "net-hfd",
+  "name": "Het Financieele Dagblad",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NET_HFD"
+  },
+  "location": "Amsterdam, Netherlands"
+ },
+ {
+  "id": "net-hp",
+  "name": "Het Parool",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NET_HP"
+  },
+  "location": "Amsterdam, Netherlands"
+ },
+ {
+  "id": "net-trouw",
+  "name": "Trouw",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NET_TROUW"
+  },
+  "location": "Amsterdam, Netherlands"
+ },
+ {
+  "id": "newz-dp",
+  "name": "The Dominion Post",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NEWZ_DP"
+  },
+  "location": "Wellington, New Zealand"
+ },
+ {
+  "id": "newz-tp",
+  "name": "The Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NEWZ_TP"
+  },
+  "location": "Christchurch, New Zealand"
+ },
+ {
+  "id": "nh-cm",
+  "name": "Concord Monitor",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NH_CM"
+  },
+  "location": "Concord, New Hampshire"
+ },
+ {
+  "id": "nh-fdd",
+  "name": "Foster's Daily Democrat",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NH_FDD"
+  },
+  "location": "Dover, New Hampshire"
+ },
+ {
+  "id": "nh-mlt",
+  "name": "Monadnock Ledger-Transcript",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NH_MLT"
+  },
+  "location": "Peterborough, New Hampshire"
+ },
+ {
+  "id": "nh-ph",
+  "name": "Portsmouth Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NH_PH"
+  },
+  "location": "Portsmouth, New Hampshire"
+ },
+ {
+  "id": "nh-ul",
+  "name": "Union Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NH_UL"
+  },
+  "location": "Manchester, New Hampshire"
+ },
+ {
+  "id": "nh-vn",
+  "name": "Valley News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NH_VN"
+  },
+  "location": "West Lebanon, New Hampshire"
+ },
+ {
+  "id": "nj-app",
+  "name": "Asbury Park Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_APP"
+  },
+  "location": "Neptune, New Jersey"
+ },
+ {
+  "id": "nj-cn",
+  "name": "Courier News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_CN"
+  },
+  "location": "Bridgewater, New Jersey"
+ },
+ {
+  "id": "nj-cp",
+  "name": "Courier-Post",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_CP"
+  },
+  "location": "Cherry Hill, New Jersey"
+ },
+ {
+  "id": "nj-dj",
+  "name": "The Daily Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_DJ"
+  },
+  "location": "Vineland, New Jersey"
+ },
+ {
+  "id": "nj-dr",
+  "name": "Daily Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_DR"
+  },
+  "location": "Parsippany, New Jersey"
+ },
+ {
+  "id": "nj-hn",
+  "name": "Herald News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_HN"
+  },
+  "location": "Woodland Park, New Jersey"
+ },
+ {
+  "id": "nj-hnt",
+  "name": "Home News Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_HNT"
+  },
+  "location": "East Brunswick, New Jersey"
+ },
+ {
+  "id": "nj-pac",
+  "name": "The Press of Atlantic City",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_PAC"
+  },
+  "location": "Pleasantville, New Jersey"
+ },
+ {
+  "id": "nj-sjt",
+  "name": "South Jersey Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_SJT"
+  },
+  "location": "Mullica Hill, New Jersey"
+ },
+ {
+  "id": "nj-sl",
+  "name": "The Star-Ledger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_SL"
+  },
+  "location": "Newark, New Jersey"
+ },
+ {
+  "id": "nj-ttt",
+  "name": "The Times of Trenton",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NJ_TTT"
+  },
+  "location": "Trenton, New Jersey"
+ },
+ {
+  "id": "nm-dh",
+  "name": "The Deming Headlight",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NM_DH"
+  },
+  "location": "Deming, New Mexico"
+ },
+ {
+  "id": "nm-lcsn",
+  "name": "Las Cruces Sun-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NM_LCSN"
+  },
+  "location": "Las Cruces, New Mexico"
+ },
+ {
+  "id": "nm-scdpi",
+  "name": "The Silver City Daily Press and Independent",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NM_SCDPI"
+  },
+  "location": "Silver City, New Mexico"
+ },
+ {
+  "id": "nm-sfnm",
+  "name": "The Santa Fe New Mexican",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NM_SFNM"
+  },
+  "location": "Santa Fe, New Mexico"
+ },
+ {
+  "id": "nv-edfp",
+  "name": "Elko Daily Free Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NV_EDFP"
+  },
+  "location": "Elko, Nevada"
+ },
+ {
+  "id": "nv-lvrj",
+  "name": "Las Vegas Review-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NV_LVRJ"
+  },
+  "location": "Las Vegas, Nevada"
+ },
+ {
+  "id": "nv-rgj",
+  "name": "Reno Gazette-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NV_RGJ"
+  },
+  "location": "Reno, Nevada"
+ },
+ {
+  "id": "nv-sun",
+  "name": "Las Vegas Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NV_SUN"
+  },
+  "location": "Las Vegas, Nevada"
+ },
+ {
+  "id": "ny-bn",
+  "name": "The Buffalo News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_BN"
+  },
+  "location": "Buffalo, New York"
+ },
+ {
+  "id": "ny-ctl",
+  "name": "The Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_CTL"
+  },
+  "location": "Corning, New York"
+ },
+ {
+  "id": "ny-daily",
+  "name": "Daily Messenger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_DAILY"
+  },
+  "location": "Canandaigua, New York"
+ },
+ {
+  "id": "ny-dn",
+  "name": "Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_DN"
+  },
+  "location": "New York, New York"
+ },
+ {
+  "id": "ny-edlp",
+  "name": "El Diario - La Prensa",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_EDLP"
+  },
+  "location": "Brooklyn, New York"
+ },
+ {
+  "id": "ny-etcny",
+  "name": "The Epoch Times: Chinese New York Edition",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_ETCNY"
+  },
+  "location": "New York, New York"
+ },
+ {
+  "id": "ny-ij",
+  "name": "Ithaca Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_IJ"
+  },
+  "location": "Ithaca, New York"
+ },
+ {
+  "id": "ny-jn",
+  "name": "The Journal News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_JN"
+  },
+  "location": "Westchester County, New York"
+ },
+ {
+  "id": "ny-nd",
+  "name": "Newsday",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_ND"
+  },
+  "location": "Melville, New York"
+ },
+ {
+  "id": "ny-od",
+  "name": "Observer-Dispatch",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_OD"
+  },
+  "location": "Utica, New York"
+ },
+ {
+  "id": "ny-pj",
+  "name": "Poughkeepsie Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_PJ"
+  },
+  "location": "Poughkeepsie, New York"
+ },
+ {
+  "id": "ny-ps",
+  "name": "The Post-Standard",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_PS"
+  },
+  "location": "Syracuse, New York"
+ },
+ {
+  "id": "ny-psb",
+  "name": "Press & Sun-Bulletin",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_PSB"
+  },
+  "location": "Binghamton, New York"
+ },
+ {
+  "id": "ny-rdc",
+  "name": "Rochester Democrat and Chronicle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_RDC"
+  },
+  "location": "Rochester, New York"
+ },
+ {
+  "id": "ny-sg",
+  "name": "Star-Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_SG"
+  },
+  "location": "Elmira, New York"
+ },
+ {
+  "id": "ny-sia",
+  "name": "Staten Island Advance",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_SIA"
+  },
+  "location": "Staten Island, New York"
+ },
+ {
+  "id": "ny-tc",
+  "name": "The Citizen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_TC"
+  },
+  "location": "Auburn, New York"
+ },
+ {
+  "id": "ny-thr",
+  "name": "Times Herald-Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_THR"
+  },
+  "location": "Middletown, New York"
+ },
+ {
+  "id": "ny-tps",
+  "name": "The Post-Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_TPS"
+  },
+  "location": "Glens Falls, New York"
+ },
+ {
+  "id": "ny-tu",
+  "name": "Times Union",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_TU"
+  },
+  "location": "Albany, New York"
+ },
+ {
+  "id": "ny-wjny",
+  "name": "World Journal - New York",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "NY_WJNY"
+  },
+  "location": "Whitestone, New York"
+ },
+ {
+  "id": "oh-abj",
+  "name": "Akron Beacon Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_ABJ"
+  },
+  "location": "Akron, Ohio"
+ },
+ {
+  "id": "oh-ar",
+  "name": "The Alliance Review",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_AR"
+  },
+  "location": "Alliance, Ohio"
+ },
+ {
+  "id": "oh-atg",
+  "name": "Ashland Times Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_ATG"
+  },
+  "location": "Ashland, Ohio"
+ },
+ {
+  "id": "oh-cd",
+  "name": "The Columbus Dispatch",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_CD"
+  },
+  "location": "Columbus, Ohio"
+ },
+ {
+  "id": "oh-ce",
+  "name": "The Cincinnati Enquirer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_CE"
+  },
+  "location": "Cincinnati, Ohio"
+ },
+ {
+  "id": "oh-cg",
+  "name": "Chillicothe Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_CG"
+  },
+  "location": "Chillicothe, Ohio"
+ },
+ {
+  "id": "oh-cot",
+  "name": "Coshocton Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_COT"
+  },
+  "location": "Coshocton, Ohio"
+ },
+ {
+  "id": "oh-cpd",
+  "name": "The Plain Dealer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_CPD"
+  },
+  "location": "Cleveland, Ohio"
+ },
+ {
+  "id": "oh-ct",
+  "name": "The Chronicle-Telegram",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_CT"
+  },
+  "location": "Elyria, Ohio"
+ },
+ {
+  "id": "oh-ddn",
+  "name": "Dayton Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_DDN"
+  },
+  "location": "Dayton, Ohio"
+ },
+ {
+  "id": "oh-dr",
+  "name": "The Daily Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_DR"
+  },
+  "location": "Wooster, Ohio"
+ },
+ {
+  "id": "oh-jn",
+  "name": "Journal News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_JN"
+  },
+  "location": "Hamilton, Ohio"
+ },
+ {
+  "id": "oh-leg",
+  "name": "Lancaster Eagle-Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_LEG"
+  },
+  "location": "Lancaster, Ohio"
+ },
+ {
+  "id": "oh-ln",
+  "name": "The Lima News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_LN"
+  },
+  "location": "Lima, Ohio"
+ },
+ {
+  "id": "oh-mg",
+  "name": "The Medina-Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_MG"
+  },
+  "location": "Medina, Ohio"
+ },
+ {
+  "id": "oh-mnj",
+  "name": "Mansfield News Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_MNJ"
+  },
+  "location": "Mansfield, Ohio"
+ },
+ {
+  "id": "oh-ms",
+  "name": "The Marion Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_MS"
+  },
+  "location": "Marion, Ohio"
+ },
+ {
+  "id": "oh-na",
+  "name": "The Newark Advocate",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_NA"
+  },
+  "location": "Newark, Ohio"
+ },
+ {
+  "id": "oh-nm",
+  "name": "The News-Messenger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_NM"
+  },
+  "location": "Fremont, Ohio"
+ },
+ {
+  "id": "oh-pcnh",
+  "name": "Port Clinton News Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_PCNH"
+  },
+  "location": "Port Clinton, Ohio"
+ },
+ {
+  "id": "oh-rc",
+  "name": "The Record-Courier",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_RC"
+  },
+  "location": "Ravenna, Ohio"
+ },
+ {
+  "id": "oh-rep",
+  "name": "The Repository",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_REP"
+  },
+  "location": "Canton, Ohio"
+ },
+ {
+  "id": "oh-sns",
+  "name": "Springfield News Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_SNS"
+  },
+  "location": "Springfield, Ohio"
+ },
+ {
+  "id": "oh-tb",
+  "name": "The Blade",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_TB"
+  },
+  "location": "Toledo, Ohio"
+ },
+ {
+  "id": "oh-ti",
+  "name": "The Independent",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_TI"
+  },
+  "location": "Massillon, Ohio"
+ },
+ {
+  "id": "oh-tr",
+  "name": "The Times-Reporter",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_TR"
+  },
+  "location": "Dover-New Philadelphia, Ohio"
+ },
+ {
+  "id": "oh-ztr",
+  "name": "The Zanesville Times Recorder",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OH_ZTR"
+  },
+  "location": "Zanesville, Ohio"
+ },
+ {
+  "id": "ok-dok",
+  "name": "The Oklahoman",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OK_DOK"
+  },
+  "location": "Oklahoma City, Oklahoma"
+ },
+ {
+  "id": "ok-ee",
+  "name": "Examiner-Enterprise",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OK_EE"
+  },
+  "location": "Bartlesville, Oklahoma"
+ },
+ {
+  "id": "ok-tw",
+  "name": "Tulsa World",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OK_TW"
+  },
+  "location": "Tulsa, Oklahoma"
+ },
+ {
+  "id": "ok-wedn",
+  "name": "Weatherford Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OK_WEDN"
+  },
+  "location": "Weatherford, Oklahoma"
+ },
+ {
+  "id": "or-rg",
+  "name": "The Register-Guard",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OR_RG"
+  },
+  "location": "Eugene, Oregon"
+ },
+ {
+  "id": "or-sj",
+  "name": "Statesman Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OR_SJ"
+  },
+  "location": "Salem, Oregon"
+ },
+ {
+  "id": "or-to",
+  "name": "The Oregonian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "OR_TO"
+  },
+  "location": "Portland, Oregon"
+ },
+ {
+  "id": "pa-am",
+  "name": "Altoona Mirror",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_AM"
+  },
+  "location": "Altoona, Pennsylvania"
+ },
+ {
+  "id": "pa-cdt",
+  "name": "Centre Daily Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_CDT"
+  },
+  "location": "State College, Pennsylvania"
+ },
+ {
+  "id": "pa-cpo",
+  "name": "Chambersburg Public Opinion",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_CPO"
+  },
+  "location": "Chambersburg, Pennsylvania"
+ },
+ {
+  "id": "pa-cv",
+  "name": "The Citizens' Voice",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_CV"
+  },
+  "location": "Wilkes-Barre, Pennsylvania"
+ },
+ {
+  "id": "pa-da",
+  "name": "Daily American",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_DA"
+  },
+  "location": "Somerset, Pennsylvania"
+ },
+ {
+  "id": "pa-di",
+  "name": "The Daily Item",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_DI"
+  },
+  "location": "Sunbury, Pennsylvania"
+ },
+ {
+  "id": "pa-egn",
+  "name": "Erie Gay News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_EGN"
+  },
+  "location": "Erie, Pennsylvania"
+ },
+ {
+  "id": "pa-et",
+  "name": "The Express-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_ET"
+  },
+  "location": "Easton, Pennsylvania"
+ },
+ {
+  "id": "pa-etn",
+  "name": "Erie Times-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_ETN"
+  },
+  "location": "Erie, Pennsylvania"
+ },
+ {
+  "id": "pa-her",
+  "name": "The Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_HER"
+  },
+  "location": "Sharon, Pennsylvania"
+ },
+ {
+  "id": "pa-ldn",
+  "name": "Lebanon Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_LDN"
+  },
+  "location": "Lebanon, Pennsylvania"
+ },
+ {
+  "id": "pa-lnp",
+  "name": "LNP",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_LNP"
+  },
+  "location": "Lancaster, Pennsylvania"
+ },
+ {
+  "id": "pa-mc",
+  "name": "The Morning Call",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_MC"
+  },
+  "location": "Allentown, Pennsylvania"
+ },
+ {
+  "id": "pa-pi",
+  "name": "The Philadelphia Inquirer",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_PI"
+  },
+  "location": "Philadelphia, Pennsylvania"
+ },
+ {
+  "id": "pa-pn",
+  "name": "The Patriot-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_PN"
+  },
+  "location": "Harrisburg, Pennsylvania"
+ },
+ {
+  "id": "pa-ppg",
+  "name": "Pittsburgh Post-Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_PPG"
+  },
+  "location": "Pittsburgh, Pennsylvania"
+ },
+ {
+  "id": "pa-pr",
+  "name": "Pocono Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_PR"
+  },
+  "location": "Stroudsburg, Pennsylvania"
+ },
+ {
+  "id": "pa-rh",
+  "name": "The Republican-Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_RH"
+  },
+  "location": "Pottsville, Pennsylvania"
+ },
+ {
+  "id": "pa-ss",
+  "name": "Standard-Speaker",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_SS"
+  },
+  "location": "Hazleton, Pennsylvania"
+ },
+ {
+  "id": "pa-tci",
+  "name": "Tri-County Independent",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_TCI"
+  },
+  "location": "Honesdale, Pennsylvania"
+ },
+ {
+  "id": "pa-td",
+  "name": "The Tribune-Democrat",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_TD"
+  },
+  "location": "Johnstown, Pennsylvania"
+ },
+ {
+  "id": "pa-trw",
+  "name": "Tribune-Review - Westmoreland Edition",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_TRW"
+  },
+  "location": "Greensburg, Pennsylvania"
+ },
+ {
+  "id": "pa-tt",
+  "name": "The Times-Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_TT"
+  },
+  "location": "Scranton, Pennsylvania"
+ },
+ {
+  "id": "pa-wrh",
+  "name": "The Record Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_WRH"
+  },
+  "location": "Waynesboro, Pennsylvania"
+ },
+ {
+  "id": "pa-yd",
+  "name": "York Dispatch",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_YD"
+  },
+  "location": "York, Pennsylvania"
+ },
+ {
+  "id": "pa-ydr",
+  "name": "York Daily Record",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PA_YDR"
+  },
+  "location": "York, Pennsylvania"
+ },
+ {
+  "id": "pak-dawn",
+  "name": "Dawn",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PAK_DAWN"
+  },
+  "location": "Karachi, Pakistan"
+ },
+ {
+  "id": "pan-lep",
+  "name": "La Estrella de Panama",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PAN_LEP"
+  },
+  "location": "Panama City, Panama"
+ },
+ {
+  "id": "phi-mb",
+  "name": "Manila Bulletin",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "PHI_MB"
+  },
+  "location": "Manila, Philippines"
+ },
+ {
+  "id": "pol-kp",
+  "name": "Kurier Poranny",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "POL_KP"
+  },
+  "location": "Bialystok, Poland"
+ },
+ {
+  "id": "qatar-ts",
+  "name": "The Peninsula",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "QATAR_TS"
+  },
+  "location": "Doha, Qatar"
+ },
+ {
+  "id": "ri-ndn",
+  "name": "Newport Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "RI_NDN"
+  },
+  "location": "Newport, Rhode Island"
+ },
+ {
+  "id": "ri-pj",
+  "name": "The Providence Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "RI_PJ"
+  },
+  "location": "Providence, Rhode Island"
+ },
+ {
+  "id": "ri-ws",
+  "name": "The Westerly Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "RI_WS"
+  },
+  "location": "Westerly, Rhode Island"
+ },
+ {
+  "id": "rom-iz",
+  "name": "Informatia Zilei",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "ROM_IZ"
+  },
+  "location": "Satu Mare, Romania"
+ },
+ {
+  "id": "rus-mp",
+  "name": "Moskovskaya Pravda",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "RUS_MP"
+  },
+  "location": "Moscow, Russia"
+ },
+ {
+  "id": "saf-ct",
+  "name": "Cape Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SAF_CT"
+  }
+ },
+ {
+  "id": "saf-ti",
+  "name": "The Independent",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SAF_TI"
+  }
+ },
+ {
+  "id": "saf-tm",
+  "name": "The Mercury",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SAF_TM"
+  },
+  "location": "Durban, South Africa"
+ },
+ {
+  "id": "sc-gn",
+  "name": "The Greenville News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_GN"
+  },
+  "location": "Greenville, South Carolina"
+ },
+ {
+  "id": "sc-hj",
+  "name": "Herald Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_HJ"
+  },
+  "location": "Spartanburg, South Carolina"
+ },
+ {
+  "id": "sc-im",
+  "name": "Anderson Independent-Mail",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_IM"
+  },
+  "location": "Anderson, South Carolina"
+ },
+ {
+  "id": "sc-ip",
+  "name": "The Island Packet",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_IP"
+  },
+  "location": "Bluffton, South Carolina"
+ },
+ {
+  "id": "sc-mn",
+  "name": "The Morning News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_MN"
+  },
+  "location": "Florence, South Carolina"
+ },
+ {
+  "id": "sc-sn",
+  "name": "The Sun News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_SN"
+  },
+  "location": "Myrtle Beach, South Carolina"
+ },
+ {
+  "id": "sc-td",
+  "name": "The Times and Democrat",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_TD"
+  },
+  "location": "Orangeburg, South Carolina"
+ },
+ {
+  "id": "sc-th",
+  "name": "The Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_TH"
+  },
+  "location": "Rock Hill, South Carolina"
+ },
+ {
+  "id": "sc-ts",
+  "name": "The State",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SC_TS"
+  },
+  "location": "Columbia, South Carolina"
+ },
+ {
+  "id": "sd-an",
+  "name": "American News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SD_AN"
+  },
+  "location": "Aberdeen, South Dakota"
+ },
+ {
+  "id": "sd-dr",
+  "name": "Mitchell Republic",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SD_DR"
+  },
+  "location": "Mitchell, South Dakota"
+ },
+ {
+  "id": "sd-rcj",
+  "name": "Rapid City Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SD_RCJ"
+  },
+  "location": "Rapid City, South Dakota"
+ },
+ {
+  "id": "sd-sfal",
+  "name": "Argus Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SD_SFAL"
+  },
+  "location": "Sioux Falls, South Dakota"
+ },
+ {
+  "id": "sd-wpo",
+  "name": "Watertown Public Opinion",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SD_WPO"
+  },
+  "location": "Watertown, South Dakota"
+ },
+ {
+  "id": "sd-ydp",
+  "name": "Yankton Daily Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SD_YDP"
+  },
+  "location": "Yankton, South Dakota"
+ },
+ {
+  "id": "sing-lz",
+  "name": "Lianhe Zaobao",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SING_LZ"
+  },
+  "location": "Singapore, The Republic of Singapore"
+ },
+ {
+  "id": "skor-ci",
+  "name": "The Chosun Ilbo",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SKOR_CI"
+  },
+  "location": "Seoul, South Korea"
+ },
+ {
+  "id": "skor-did",
+  "name": "The Dong-a Ilbo",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SKOR_DID"
+  },
+  "location": "Seoul, South Korea"
+ },
+ {
+  "id": "skor-jai",
+  "name": "JoongAng Ilbo",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SKOR_JAI"
+  },
+  "location": "Seoul, South Korea"
+ },
+ {
+  "id": "skor-mb",
+  "name": "The Maeil Business Newspaper",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SKOR_MB"
+  },
+  "location": "Seoul, South Korea"
+ },
+ {
+  "id": "slk-den",
+  "name": "Denn\u00edk N",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SLK_DEN"
+  },
+  "location": "Bratislava, Slovakia"
+ },
+ {
+  "id": "spa-ara",
+  "name": "ARA",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SPA_ARA"
+  },
+  "location": "Barcelona, Spain"
+ },
+ {
+  "id": "spa-lv",
+  "name": "La Vanguardia",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SPA_LV"
+  },
+  "location": "Barcelona, Spain"
+ },
+ {
+  "id": "spa-segre",
+  "name": "Segre",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SPA_SEGRE"
+  },
+  "location": "Lleida, Spain"
+ },
+ {
+  "id": "swe-dn",
+  "name": "Dagens Nyheter",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SWE_DN"
+  },
+  "location": "Stockholm, Sweden"
+ },
+ {
+  "id": "swe-ex",
+  "name": "Expressen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SWE_EX"
+  },
+  "location": "Stockholm, Sweden"
+ },
+ {
+  "id": "swe-gt",
+  "name": "G\u00f6teborgstidningen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SWE_GT"
+  },
+  "location": "G\u00f6teborg, Sweden"
+ },
+ {
+  "id": "swe-kv",
+  "name": "Kv\u00e4llsposten",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SWE_KV"
+  },
+  "location": "Malm\u00f6, Sweden"
+ },
+ {
+  "id": "swi-bk",
+  "name": "Blick",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "SWI_BK"
+  },
+  "location": "Z\u00fcrich, Switzerland"
+ },
+ {
+  "id": "taiw-tmt",
+  "name": "The Merit Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TAIW_TMT"
+  },
+  "location": "Taipei, Taiwan"
+ },
+ {
+  "id": "tn-ca",
+  "name": "The Commercial Appeal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_CA"
+  },
+  "location": "Memphis, Tennessee"
+ },
+ {
+  "id": "tn-ctfp",
+  "name": "Chattanooga Times Free Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_CTFP"
+  },
+  "location": "Chattanooga, Tennessee"
+ },
+ {
+  "id": "tn-dnj",
+  "name": "The Daily News Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_DNJ"
+  },
+  "location": "Murfreesboro, Tennessee"
+ },
+ {
+  "id": "tn-dt",
+  "name": "The Daily Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_DT"
+  },
+  "location": "Maryville, Tennessee"
+ },
+ {
+  "id": "tn-js",
+  "name": "The Jackson Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_JS"
+  },
+  "location": "Jackson, Tennessee"
+ },
+ {
+  "id": "tn-kns",
+  "name": "News Sentinel",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_KNS"
+  },
+  "location": "Knoxville, Tennessee"
+ },
+ {
+  "id": "tn-lc",
+  "name": "The Leaf-Chronicle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_LC"
+  },
+  "location": "Clarksville, Tennessee"
+ },
+ {
+  "id": "tn-tt",
+  "name": "The Tennessean",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TN_TT"
+  },
+  "location": "Nashville, Tennessee"
+ },
+ {
+  "id": "tur-ds",
+  "name": "Daily Sabah",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TUR_DS"
+  },
+  "location": "Istanbul, Turkey"
+ },
+ {
+  "id": "tur-foto",
+  "name": "Fotomac",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TUR_FOTO"
+  },
+  "location": "Istanbul, Turkey"
+ },
+ {
+  "id": "tur-sab",
+  "name": "Sabah",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TUR_SAB"
+  },
+  "location": "Istanbul, Turkey"
+ },
+ {
+  "id": "tur-tak",
+  "name": "Takvim",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TUR_TAK"
+  },
+  "location": "Istanbul, Turkey"
+ },
+ {
+  "id": "tur-ticar",
+  "name": "Ticaret Gazetesi",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TUR_TICAR"
+  },
+  "location": "Izmir, Turkey"
+ },
+ {
+  "id": "tur-yen",
+  "name": "Yeniasir",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TUR_YEN"
+  },
+  "location": "Izmir, Turkey"
+ },
+ {
+  "id": "tx-aashn",
+  "name": "Austin American-Statesman",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_AASHN"
+  },
+  "location": "Austin, Texas"
+ },
+ {
+  "id": "tx-agn",
+  "name": "Amarillo Globe-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_AGN"
+  },
+  "location": "Amarillo, Texas"
+ },
+ {
+  "id": "tx-arn",
+  "name": "Abilene Reporter-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_ARN"
+  },
+  "location": "Abilene, Texas"
+ },
+ {
+  "id": "tx-be",
+  "name": "The Beaumont Enterprise",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_BE"
+  },
+  "location": "Beaumont, Texas"
+ },
+ {
+  "id": "tx-ccct",
+  "name": "Corpus Christi Caller-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_CCCT"
+  },
+  "location": "Corpus Christi, Texas"
+ },
+ {
+  "id": "tx-dmn",
+  "name": "The Dallas Morning News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_DMN"
+  },
+  "location": "Dallas, Texas"
+ },
+ {
+  "id": "tx-dmnhn",
+  "name": "The Dallas Morning News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_DMNHN"
+  },
+  "location": "Dallas, Texas"
+ },
+ {
+  "id": "tx-drc",
+  "name": "Denton Record-Chronicle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_DRC"
+  },
+  "location": "Denton, Texas"
+ },
+ {
+  "id": "tx-dv",
+  "name": "Dallas Voice",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_DV"
+  },
+  "location": "Dallas, Texas"
+ },
+ {
+  "id": "tx-ept",
+  "name": "El Paso Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_EPT"
+  },
+  "location": "El Paso, Texas"
+ },
+ {
+  "id": "tx-fwst",
+  "name": "Fort Worth Star-Telegram",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_FWST"
+  },
+  "location": "Fort Worth, Texas"
+ },
+ {
+  "id": "tx-gcdn",
+  "name": "Galveston County Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_GCDN"
+  },
+  "location": "Galveston, Texas"
+ },
+ {
+  "id": "tx-hc",
+  "name": "Houston Chronicle",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_HC"
+  },
+  "location": "Houston, Texas"
+ },
+ {
+  "id": "tx-knh",
+  "name": "Kilgore News Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_KNH"
+  },
+  "location": "Kilgore, Texas"
+ },
+ {
+  "id": "tx-laj",
+  "name": "Lubbock Avalanche-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_LAJ"
+  },
+  "location": "Lubbock, Texas"
+ },
+ {
+  "id": "tx-ldn",
+  "name": "The Lufkin Daily News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_LDN"
+  },
+  "location": "Lufkin, Texas"
+ },
+ {
+  "id": "tx-lmt",
+  "name": "Laredo Morning Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_LMT"
+  },
+  "location": "Laredo, Texas"
+ },
+ {
+  "id": "tx-lnj",
+  "name": "Longview News-Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_LNJ"
+  },
+  "location": "Longview, Texas"
+ },
+ {
+  "id": "tx-mnm",
+  "name": "The Marshall News Messenger",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_MNM"
+  },
+  "location": "Marshall, Texas"
+ },
+ {
+  "id": "tx-pw",
+  "name": "The Panola Watchman",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_PW"
+  },
+  "location": "Carthage, Texas"
+ },
+ {
+  "id": "tx-saen",
+  "name": "San Antonio Express-News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_SAEN"
+  },
+  "location": "San Antonio, Texas"
+ },
+ {
+  "id": "tx-st",
+  "name": "Standard-Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_ST"
+  },
+  "location": "San Angelo, Texas"
+ },
+ {
+  "id": "tx-tdt",
+  "name": "Temple Daily Telegram",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_TDT"
+  },
+  "location": "Temple, Texas"
+ },
+ {
+  "id": "tx-tg",
+  "name": "Texarkana Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_TG"
+  },
+  "location": "Texarkana, Texas"
+ },
+ {
+  "id": "tx-tmt",
+  "name": "Tyler Morning Telegraph",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_TMT"
+  },
+  "location": "Tyler, Texas"
+ },
+ {
+  "id": "tx-trn",
+  "name": "Times Record News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_TRN"
+  },
+  "location": "Wichita Falls, Texas"
+ },
+ {
+  "id": "tx-va",
+  "name": "Victoria Advocate",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_VA"
+  },
+  "location": "Victoria, Texas"
+ },
+ {
+  "id": "tx-wth",
+  "name": "Waco Tribune-Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "TX_WTH"
+  },
+  "location": "Waco, Texas"
+ },
+ {
+  "id": "uae-ab",
+  "name": "The Daily Al Bayan",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "UAE_AB"
+  },
+  "location": "Dubai, United Arab Emirates"
+ },
+ {
+  "id": "uae-gn",
+  "name": "Gulf News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "UAE_GN"
+  },
+  "location": "Dubai, United Arab Emirates"
+ },
+ {
+  "id": "uae-tn",
+  "name": "The National",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "UAE_TN"
+  },
+  "location": "Abu Dhabi, United Arab Emirates"
+ },
+ {
+  "id": "usat",
+  "name": "USA Today",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "USAT"
+  },
+  "location": "McLean, Virginia"
+ },
+ {
+  "id": "ut-dh",
+  "name": "The Daily Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "UT_DH"
+  },
+  "location": "Provo, Utah"
+ },
+ {
+  "id": "ut-ts",
+  "name": "The Spectrum",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "UT_TS"
+  },
+  "location": "St. George, Utah"
+ },
+ {
+  "id": "va-ach",
+  "name": "Arlington Catholic Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_ACH"
+  },
+  "location": "Arlington, Virginia"
+ },
+ {
+  "id": "va-bhc",
+  "name": "Bristol Herald Courier",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_BHC"
+  },
+  "location": "Bristol, Virginia"
+ },
+ {
+  "id": "va-cse",
+  "name": "Culpeper Star-Exponent",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_CSE"
+  },
+  "location": "Culpeper, Virginia"
+ },
+ {
+  "id": "va-dp",
+  "name": "Daily Progress",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_DP"
+  },
+  "location": "Charlottesville, Virginia"
+ },
+ {
+  "id": "va-dpress",
+  "name": "Daily Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_DPRESS"
+  },
+  "location": "Newport News, Virginia"
+ },
+ {
+  "id": "va-drb",
+  "name": "Danville Register & Bee",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_DRB"
+  },
+  "location": "Danville, Virginia"
+ },
+ {
+  "id": "va-fls",
+  "name": "The Free Lance-Star",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_FLS"
+  },
+  "location": "Fredericksburg, Virginia"
+ },
+ {
+  "id": "va-na",
+  "name": "The News & Advance",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_NA"
+  },
+  "location": "Lynchburg, Virginia"
+ },
+ {
+  "id": "va-nl",
+  "name": "The News Leader",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_NL"
+  },
+  "location": "Staunton, Virginia"
+ },
+ {
+  "id": "va-nv",
+  "name": "The News Virginian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_NV"
+  },
+  "location": "Waynesboro, Virginia"
+ },
+ {
+  "id": "va-pol",
+  "name": "POLITICO",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_POL"
+  },
+  "location": "Arlington, Virginia"
+ },
+ {
+  "id": "va-rtd",
+  "name": "Richmond Times-Dispatch",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_RTD"
+  },
+  "location": "Richmond, Virginia"
+ },
+ {
+  "id": "va-trt",
+  "name": "The Roanoke Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_TRT"
+  },
+  "location": "Roanoke, Virginia"
+ },
+ {
+  "id": "va-vp",
+  "name": "The Virginian-Pilot",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VA_VP"
+  },
+  "location": "Norfolk, Virginia"
+ },
+ {
+  "id": "vt-bfp",
+  "name": "The Burlington Free Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "VT_BFP"
+  },
+  "location": "Burlington, Vermont"
+ },
+ {
+  "id": "wa-bh",
+  "name": "Bellingham Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_BH"
+  },
+  "location": "Bellingham, Washington"
+ },
+ {
+  "id": "wa-cbh",
+  "name": "Columbia Basin Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_CBH"
+  },
+  "location": "Moses Lake, Washington"
+ },
+ {
+  "id": "wa-col",
+  "name": "The Columbian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_COL"
+  },
+  "location": "Vancouver, Washington"
+ },
+ {
+  "id": "wa-nt",
+  "name": "The News Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_NT"
+  },
+  "location": "Tacoma, Washington"
+ },
+ {
+  "id": "wa-sr",
+  "name": "The Spokesman-Review",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_SR"
+  },
+  "location": "Spokane, Washington"
+ },
+ {
+  "id": "wa-st",
+  "name": "The Seattle Times",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_ST"
+  },
+  "location": "Seattle, Washington"
+ },
+ {
+  "id": "wa-sun",
+  "name": "Kitsap Sun",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_SUN"
+  },
+  "location": "Bremerton, Washington"
+ },
+ {
+  "id": "wa-tch",
+  "name": "Tri-City Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_TCH"
+  },
+  "location": "Kennewick, Washington"
+ },
+ {
+  "id": "wa-to",
+  "name": "The Olympian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WA_TO"
+  },
+  "location": "Olympia, Washington"
+ },
+ {
+  "id": "wi-bddc",
+  "name": "Beaver Dam Daily Citizen",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_BDDC"
+  },
+  "location": "Beaver Dam, Wisconsin"
+ },
+ {
+  "id": "wi-bnr",
+  "name": "Baraboo News Republic",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_BNR"
+  },
+  "location": "Baraboo, Wisconsin"
+ },
+ {
+  "id": "wi-ch",
+  "name": "Chippewa Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_CH"
+  },
+  "location": "Chippewa Falls, Wisconsin"
+ },
+ {
+  "id": "wi-dcn",
+  "name": "Dunn County News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_DCN"
+  },
+  "location": "Menomonie, Wisconsin"
+ },
+ {
+  "id": "wi-dt",
+  "name": "Daily Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_DT"
+  },
+  "location": "Wisconsin Rapids, Wisconsin"
+ },
+ {
+  "id": "wi-gbp",
+  "name": "Green Bay Press-Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_GBP"
+  },
+  "location": "Green Bay, Wisconsin"
+ },
+ {
+  "id": "wi-htr",
+  "name": "Herald Times Reporter",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_HTR"
+  },
+  "location": "Manitowoc, Wisconsin"
+ },
+ {
+  "id": "wi-jg",
+  "name": "The Janesville Gazette",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_JG"
+  },
+  "location": "Janesville, Wisconsin"
+ },
+ {
+  "id": "wi-mjs",
+  "name": "Milwaukee Journal Sentinel",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_MJS"
+  },
+  "location": "Milwaukee, Wisconsin"
+ },
+ {
+  "id": "wi-mnh",
+  "name": "Marshfield News-Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_MNH"
+  },
+  "location": "Marshfield, Wisconsin"
+ },
+ {
+  "id": "wi-on",
+  "name": "Oshkosh Northwestern",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_ON"
+  },
+  "location": "Oshkosh, Wisconsin"
+ },
+ {
+  "id": "wi-pc",
+  "name": "The Post-Crescent",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_PC"
+  },
+  "location": "Appleton, Wisconsin"
+ },
+ {
+  "id": "wi-pdr",
+  "name": "Portage Daily Register",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_PDR"
+  },
+  "location": "Portage, Wisconsin"
+ },
+ {
+  "id": "wi-sn",
+  "name": "The Star News",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_SN"
+  },
+  "location": "Medford, Wisconsin"
+ },
+ {
+  "id": "wi-sp",
+  "name": "The Sheboygan Press",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_SP"
+  },
+  "location": "Sheboygan, Wisconsin"
+ },
+ {
+  "id": "wi-spj",
+  "name": "Stevens Point Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_SPJ"
+  },
+  "location": "Stevens Point, Wisconsin"
+ },
+ {
+  "id": "wi-tr",
+  "name": "The Reporter",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_TR"
+  },
+  "location": "Fond du Lac, Wisconsin"
+ },
+ {
+  "id": "wi-wdh",
+  "name": "The Wausau Daily Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_WDH"
+  },
+  "location": "Wausau, Wisconsin"
+ },
+ {
+  "id": "wi-wsj",
+  "name": "Wisconsin State Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WI_WSJ"
+  },
+  "location": "Madison, Wisconsin"
+ },
+ {
+  "id": "wsj",
+  "name": "The Wall Street Journal",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WSJ"
+  },
+  "location": "New York, New York"
+ },
+ {
+  "id": "wv-pns",
+  "name": "Parkersburg News and Sentinel",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WV_PNS"
+  },
+  "location": "Parkersburg, West Virginia"
+ },
+ {
+  "id": "wv-rh",
+  "name": "The Register-Herald",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WV_RH"
+  },
+  "location": "Beckley, West Virginia"
+ },
+ {
+  "id": "wv-twv",
+  "name": "Times West Virginian",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WV_TWV"
+  },
+  "location": "Fairmont, West Virginia"
+ },
+ {
+  "id": "wy-cst",
+  "name": "Casper Star-Tribune",
+  "provider": "freedomforum",
+  "config": {
+   "prefix": "WY_CST"
+  },
+  "location": "Casper, Wyoming"
+ }
+]

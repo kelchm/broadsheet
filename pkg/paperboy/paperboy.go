@@ -42,10 +42,12 @@ import (
 	"github.com/kelchm/paperboy/internal/archive"
 	"github.com/kelchm/paperboy/internal/buildinfo"
 	"github.com/kelchm/paperboy/internal/cache"
+	"github.com/kelchm/paperboy/internal/catalog"
 	"github.com/kelchm/paperboy/internal/reconcile"
 	"github.com/kelchm/paperboy/internal/registry"
 	"github.com/kelchm/paperboy/internal/render"
 	"github.com/kelchm/paperboy/internal/source"
+	"github.com/kelchm/paperboy/internal/store"
 )
 
 // Source describes a newspaper feed. Alias of the internal canonical type.
@@ -123,7 +125,7 @@ const (
 
 // Config holds runtime configuration for a Paperboy instance.
 type Config struct {
-	// DataDir is where the archive, render cache, and state.json live. Required.
+	// DataDir is where the archive, render cache, and paperboy.db live. Required.
 	DataDir string
 
 	// Width is the master render width in pixels (quality ceiling). Default 1600.
@@ -135,7 +137,9 @@ type Config struct {
 	// ArchiveDays is how many days of editions to retain. Default 14.
 	ArchiveDays int
 
-	// Sources optionally overrides the default source registry.
+	// Sources optionally bypasses the store entirely. When nil (the default),
+	// the store is seeded from the embedded catalog and the user's enabled set
+	// is loaded from it.
 	Sources []Source
 
 	// Cursors optionally overrides the per-device rotation store. Default is
@@ -206,7 +210,7 @@ type Paperboy struct {
 	sources    []source.Source
 	archive    *archive.Store
 	renderer   *render.Renderer
-	store      *cache.Store
+	store      *store.Store
 	reconciler *reconcile.Reconciler
 	cacheDir   string
 	cursors    Cursors
@@ -239,11 +243,6 @@ func New(cfg Config) (*Paperboy, error) {
 		cursors = newMemCursors()
 	}
 
-	srcs := cfg.Sources
-	if srcs == nil {
-		srcs = registry.Default()
-	}
-
 	archiveDir := filepath.Join(cfg.DataDir, "archive")
 	cacheDir := filepath.Join(cfg.DataDir, "cache")
 	for _, d := range []string{archiveDir, cacheDir} {
@@ -252,16 +251,26 @@ func New(cfg Config) (*Paperboy, error) {
 		}
 	}
 
-	store, err := cache.Open(filepath.Join(cfg.DataDir, "state.json"))
+	st, err := store.Open(filepath.Join(cfg.DataDir, "paperboy.db"))
 	if err != nil {
-		return nil, fmt.Errorf("paperboy: open state: %w", err)
+		return nil, fmt.Errorf("paperboy: open store: %w", err)
+	}
+	importLegacyState(st, filepath.Join(cfg.DataDir, "state.json"), cfg.Logger)
+
+	srcs := cfg.Sources
+	if srcs == nil {
+		srcs, err = loadSources(st, cfg.Logger)
+		if err != nil {
+			_ = st.Close()
+			return nil, err
+		}
 	}
 
 	arch := &archive.Store{Root: archiveDir}
 	rec := &reconcile.Reconciler{
 		Sources:   srcs,
 		Archive:   arch,
-		Store:     store,
+		Store:     st,
 		Deps:      source.Deps{HTTP: &http.Client{Timeout: 30 * time.Second}, Logger: cfg.Logger},
 		Retention: time.Duration(cfg.ArchiveDays) * 24 * time.Hour,
 		Interval:  cfg.PollInterval,
@@ -274,12 +283,104 @@ func New(cfg Config) (*Paperboy, error) {
 		sources:    srcs,
 		archive:    arch,
 		renderer:   render.New(),
-		store:      store,
+		store:      st,
 		reconciler: rec,
 		cacheDir:   cacheDir,
 		cursors:    cursors,
 		now:        time.Now,
 	}, nil
+}
+
+// loadSources seeds the store from the embedded catalog, then loads the
+// enabled set. Seeding runs every boot: INSERT OR IGNORE means papers added to
+// the catalog in a new release appear in the store, while rows the user has
+// touched are never clobbered. Sources live as rows — provider type + JSON
+// config — decoded into typed providers here; a row that fails to decode is
+// skipped with a warning rather than taking the whole engine down.
+func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) {
+	entries, err := catalog.All()
+	if err != nil {
+		return nil, fmt.Errorf("paperboy: load catalog: %w", err)
+	}
+	rows := make([]store.SourceRow, 0, len(entries))
+	for i, e := range entries {
+		rows = append(rows, store.SourceRow{
+			ID: e.ID, DisplayName: e.Name,
+			ProviderType: e.Provider, ProviderConfig: e.Config,
+			Enabled: e.Default, Position: i,
+		})
+	}
+	if err := st.SeedSources(rows); err != nil {
+		return nil, fmt.Errorf("paperboy: seed sources: %w", err)
+	}
+
+	stored, err := st.ListSources(true)
+	if err != nil {
+		return nil, fmt.Errorf("paperboy: list sources: %w", err)
+	}
+	var out []source.Source
+	for _, r := range stored {
+		s, err := registry.Build(r.ID, r.DisplayName, r.ProviderType, r.ProviderConfig)
+		if err != nil {
+			logger.Warn("skipping undecodable source", "id", r.ID, "err", err)
+			continue
+		}
+		out = append(out, s)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("paperboy: no enabled sources decoded (%d enabled rows; check the warnings above, or set Config.Sources)", len(stored))
+	}
+	return out, nil
+}
+
+// importLegacyState migrates a pre-SQLite state.json (provider ETags +
+// per-source health) into the store, then sets the file aside so the import
+// runs exactly once. Best-effort: its contents are re-derivable, so failures
+// warn and move on.
+func importLegacyState(st *store.Store, path string, logger *slog.Logger) {
+	if _, err := os.Stat(path); err != nil {
+		return
+	}
+	legacy, err := cache.Open(path)
+	if err != nil {
+		logger.Warn("legacy state.json unreadable; skipping import", "err", err)
+		return
+	}
+	snap := legacy.Snapshot()
+	for id, vers := range snap.Versions {
+		// Never overwrite tokens the store already has: if a previous import's
+		// rename failed, the reconciler may have persisted newer ETags since.
+		if len(st.Versions(id)) > 0 {
+			continue
+		}
+		if err := st.SetVersions(id, vers); err != nil {
+			logger.Warn("import legacy versions failed", "source", id, "err", err)
+		}
+	}
+	for id, rec := range snap.Sources {
+		if rec.LastFetchOK != nil {
+			_ = st.RecordSuccess(id, *rec.LastFetchOK)
+		}
+		if rec.LastFetchError != nil {
+			_ = st.RecordFailure(id, rec.LastErrorMsg, *rec.LastFetchError)
+		}
+	}
+	// A corrupt legacy file was already set aside as .corrupt by cache.Open, so
+	// the source file may be gone — that's fine, not a failed rename.
+	if err := os.Rename(path, path+".imported"); err != nil && !os.IsNotExist(err) {
+		logger.Warn("could not set aside legacy state.json; it will re-import next boot", "err", err)
+		return
+	}
+	logger.Info("imported legacy state.json into the store",
+		"sources", len(snap.Sources), "versions", len(snap.Versions))
+}
+
+// Close releases the engine's persistent resources (the store's database
+// handle). Call it when done with an engine constructed by New; the server
+// does so on shutdown, and embedders constructing engines dynamically must
+// too. Render/read calls must not race Close.
+func (p *Paperboy) Close() error {
+	return p.store.Close()
 }
 
 // StartReconciler launches the background mirror loop in its own goroutine. It
@@ -530,9 +631,13 @@ func (p *Paperboy) Ready() bool {
 
 // HealthSnapshot returns the current per-source health.
 func (p *Paperboy) HealthSnapshot() Health {
-	snap := p.store.Snapshot()
-	out := Health{Sources: make(map[string]SourceHealth, len(snap.Sources))}
-	for id, rec := range snap.Sources {
+	snap, err := p.store.HealthSnapshot()
+	if err != nil {
+		p.cfg.Logger.Warn("health snapshot failed", "err", err)
+		return Health{Sources: map[string]SourceHealth{}}
+	}
+	out := Health{Sources: make(map[string]SourceHealth, len(snap))}
+	for id, rec := range snap {
 		out.Sources[id] = SourceHealth{
 			LastFetchOK:    rec.LastFetchOK,
 			LastFetchError: rec.LastFetchError,

@@ -45,7 +45,9 @@ internal/            not importable from outside
   archive/             durable PDF store, keyed by edition date
   render/              archived artifact -> master-width PNG
   rasterize/           PDF -> image (go-fitz / MuPDF)
-  cache/               small JSON state file (per-source health + ETags)
+  store/               paperboy.db (SQLite): sources, ETags, health history
+  catalog/             embedded list of known papers (seeds the store)
+  cache/               legacy state.json reader (one-time import)
 pkg/paperboy/        the public API, for embedding
 docker/              production Dockerfile + compose
 .devcontainer/       VS Code dev container
@@ -141,7 +143,7 @@ Everything's an env var:
 | Var | Default | What it does |
 |---|---|---|
 | `PAPERBOY_PORT` | `8080` | HTTP port |
-| `PAPERBOY_DATA_DIR` | `./data` | Holds `archive/` (PDFs), `cache/` (PNGs), and `state.json` |
+| `PAPERBOY_DATA_DIR` | `./data` | Holds `archive/` (PDFs), `cache/` (PNGs), and `paperboy.db` |
 | `PAPERBOY_WIDTH` | `1600` | Master width — what we cache at. `?w=` resizes down from here. |
 | `PAPERBOY_POLL_INTERVAL` | `30m` | How often the background loop checks upstream |
 | `PAPERBOY_ARCHIVE_DAYS` | `14` | How many days of editions to keep |

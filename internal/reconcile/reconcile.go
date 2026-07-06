@@ -15,15 +15,30 @@ import (
 	"time"
 
 	"github.com/kelchm/paperboy/internal/archive"
-	"github.com/kelchm/paperboy/internal/cache"
 	"github.com/kelchm/paperboy/internal/source"
 )
+
+// StateStore is what the reconciler needs from persistent state: provider
+// version tokens and per-source health records. Satisfied by internal/store
+// (SQLite) and the legacy internal/cache JSON store alike.
+type StateStore interface {
+	Versions(sourceID string) map[string]string
+	SetVersions(sourceID string, versions map[string]string) error
+	RecordSuccess(sourceID string, when time.Time) error
+	RecordFailure(sourceID, msg string, when time.Time) error
+}
+
+// fetchEventPruner is optionally implemented by stores that keep health
+// history (the SQLite store does; the legacy JSON store doesn't).
+type fetchEventPruner interface {
+	PruneFetchEvents(retention time.Duration, now time.Time) (int, error)
+}
 
 // Reconciler keeps the archive up to date for a set of sources.
 type Reconciler struct {
 	Sources   []source.Source
 	Archive   *archive.Store
-	Store     *cache.Store
+	Store     StateStore
 	Deps      source.Deps
 	Retention time.Duration
 	Interval  time.Duration
@@ -96,6 +111,14 @@ func (r *Reconciler) ReconcileOnce(ctx context.Context) {
 			r.logger().Warn("render cache prune failed", "err", err)
 		} else if removed > 0 {
 			r.logger().Info("pruned cached renders", "count", removed)
+		}
+	}
+
+	// Health history follows the same retention as everything else, when the
+	// store keeps history at all.
+	if p, ok := r.Store.(fetchEventPruner); ok {
+		if _, err := p.PruneFetchEvents(r.Retention, now); err != nil {
+			r.logger().Warn("fetch event prune failed", "err", err)
 		}
 	}
 }

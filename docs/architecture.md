@@ -40,7 +40,9 @@ is the one legacy exception until it's removed.)
   archive/<source-id>/<YYYYMMDD>.pdf   # durable source of truth; kept N days
   cache/<source-id>/<YYYYMMDD>.w<W>.png # disposable master renders (keyed by
                                         # edition date + master width); evict anytime
-  state.json                           # per-source health + provider ETags
+  paperboy.db                          # SQLite: source catalog/enabled set,
+                                       # provider ETags, fetch-event history,
+                                       # crop overrides
 ```
 
 Two directories, very different lifetimes:
@@ -53,9 +55,12 @@ Two directories, very different lifetimes:
   cycle). Evict any PNG whenever you like and you've lost a few hundred
   milliseconds of re-render, nothing more. `rm -rf cache/` is always safe.
 
-`state.json` is in the same spirit: it holds only re-derivable bookkeeping
-(health timestamps + provider ETags), so a corrupt file is set aside as
-`state.json.corrupt` and the server starts fresh rather than refusing to boot.
+`paperboy.db` holds the records a UI can eventually mutate: the catalog's
+enabled set, provider ETags, fetch-event health history, and crop overrides.
+Pure Go SQLite (modernc.org/sqlite) — no new native linkage. WAL mode means
+`-wal`/`-shm` sidecar files appear next to it; copy the trio (or a quiesced
+db) when backing up. A pre-SQLite `state.json` is imported once on boot and
+set aside as `state.json.imported`.
 
 Everything's keyed by edition date (`YYYYMMDD`, from the PDF's `Last-Modified`
 header, falling back to the probed folder's date if that header is missing),
@@ -134,22 +139,16 @@ func (f FreedomForum) Poll(ctx context.Context, deps Deps, seen map[string]strin
 }
 ```
 
-Registry entries stay one-liners, just typed:
-
-```go
-{ID: "ny-nyt", DisplayName: "The New York Times",
- Provider:  FreedomForum{Prefix: "NY_NYT"},
- CropHints: CropHints{MastheadText: "The New York Times"}},
-```
-
-The freedomforum-specific `Prefix` lives on the provider now, instead of being
+The freedomforum-specific `Prefix` lives on the provider, instead of being
 smeared across the generic `Source`.
 
-The tradeoff, which I'm fine with at this stage: a `Source` holds behavior (an
-interface value), so sources are Go-defined for now — you can't load them
-straight from a YAML/JSON file without a registry or decoder. If config-file
-sources ever become a goal, that's exactly where a params-decoding provider (or a
-`ConfigurableProvider[C]`) would slot in, without touching this interface.
+Sources live as *data* — a row in the store (and an entry in the embedded
+catalog): `provider_type` + a JSON config blob. The registry is the
+params-decoding seam that turns that data back into a typed provider value
+(`{"prefix": "NY_NYT"}` -> `FreedomForum{Prefix: "NY_NYT"}`), so the `Provider`
+interface never changed. On first boot the store is seeded from the catalog
+with the classic defaults enabled; embedders can still pass `Config.Sources`
+to bypass the store entirely.
 
 ### Adding a provider
 
@@ -319,7 +318,7 @@ a TRMNL, a Home Assistant card, and a browser tab.
 | Var | Default | Description |
 |---|---|---|
 | `PAPERBOY_PORT` | `8080` | HTTP listen port |
-| `PAPERBOY_DATA_DIR` | `./data` | Root for `archive/`, `cache/`, `state.json` |
+| `PAPERBOY_DATA_DIR` | `./data` | Root for `archive/`, `cache/`, `paperboy.db` |
 | `PAPERBOY_WIDTH` | `1600` | Master render width (quality ceiling) |
 | `PAPERBOY_POLL_INTERVAL` | `30m` | Reconciler cadence |
 | `PAPERBOY_ARCHIVE_DAYS` | `14` | PDF archive retention |
@@ -377,7 +376,9 @@ internal/
   archive/           durable PDF store: atomic Put, Newest, prune
   render/            MediaType-aware "normalize to master PNG" (wraps rasterize)
   rasterize/         PDF -> image (go-fitz / MuPDF)
-  cache/             state.json: per-source health + provider ETags
+  store/             paperboy.db (SQLite): sources, provider ETags, health events
+  catalog/           embedded catalog.json: the browsable list of known papers
+  cache/             legacy state.json reader (one-time import only)
   buildinfo/         version string + User-Agent
 pkg/paperboy/        the engine: wires it all together; RenderCurrent / RenderFor /
                      StartReconciler

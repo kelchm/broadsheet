@@ -95,6 +95,9 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown error", "err", err)
 	}
+	if err := p.Close(); err != nil {
+		logger.Error("close engine", "err", err)
+	}
 }
 
 // newRouter assembles the real route table. Kept separate from main() so

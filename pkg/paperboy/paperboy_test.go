@@ -14,6 +14,7 @@ import (
 	"github.com/disintegration/imaging"
 
 	"github.com/kelchm/paperboy/internal/archive"
+	"github.com/kelchm/paperboy/internal/catalog"
 	"github.com/kelchm/paperboy/internal/source"
 )
 
@@ -247,5 +248,84 @@ func TestServe_RenderDetachedFromCallerContext(t *testing.T) {
 	defer fake.mu.Unlock()
 	if fake.ctxError != nil {
 		t.Errorf("rasterizer saw ctx error %v, want detached (nil)", fake.ctxError)
+	}
+}
+
+func TestNew_SeedsCatalogAndLoadsDefaults(t *testing.T) {
+	dir := t.TempDir()
+	p, err := New(Config{DataDir: dir}) // no Config.Sources -> store-backed
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	entries, err := catalog.All()
+	if err != nil {
+		t.Fatalf("catalog.All: %v", err)
+	}
+	wantDefaults := 0
+	for _, e := range entries {
+		if e.Default {
+			wantDefaults++
+		}
+	}
+
+	srcs := p.ListSources()
+	if len(srcs) != wantDefaults {
+		t.Fatalf("got %d enabled sources, want exactly the %d catalog defaults", len(srcs), wantDefaults)
+	}
+	ids := map[string]bool{}
+	for _, s := range srcs {
+		ids[s.ID] = true
+		if s.Provider == nil {
+			t.Errorf("source %s decoded without a provider", s.ID)
+		}
+	}
+	if !ids["ny-nyt"] {
+		t.Error("catalog default ny-nyt missing from enabled set")
+	}
+	if ids["usat"] {
+		t.Error("non-default usat must not be enabled on a fresh install")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "paperboy.db")); err != nil {
+		t.Errorf("store file not created: %v", err)
+	}
+
+	// A second engine over the same DataDir reuses the seeded store.
+	p2, err := New(Config{DataDir: dir})
+	if err != nil {
+		t.Fatalf("New (reopen): %v", err)
+	}
+	if len(p2.ListSources()) != len(srcs) {
+		t.Errorf("reopen changed the enabled set: %d vs %d", len(p2.ListSources()), len(srcs))
+	}
+}
+
+func TestNew_ImportsLegacyStateJSON(t *testing.T) {
+	dir := t.TempDir()
+	legacy := `{
+	  "sources": {"ny-nyt": {"last_fetch_ok": "2026-06-29T05:00:00Z",
+	                          "last_fetch_err": "2026-06-28T05:00:00Z",
+	                          "last_error_msg": ""}},
+	  "versions": {"ny-nyt": {"url30": "e30"}}
+	}`
+	if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := New(Config{DataDir: dir})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if v := p.store.Versions("ny-nyt"); v["url30"] != "e30" {
+		t.Errorf("imported versions = %v, want url30=e30", v)
+	}
+	h := p.HealthSnapshot()
+	if h.Sources["ny-nyt"].LastFetchOK == nil {
+		t.Error("imported health missing LastFetchOK")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "state.json.imported")); err != nil {
+		t.Errorf("legacy file not set aside: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "state.json")); !os.IsNotExist(err) {
+		t.Error("legacy state.json should be gone after import")
 	}
 }
