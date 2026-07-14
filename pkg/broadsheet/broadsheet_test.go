@@ -68,6 +68,73 @@ func TestCompose_Dimensions(t *testing.T) {
 	}
 }
 
+// borderedPNG returns a white w x h page with a solid black content block in
+// [x0,x1)×[y0,y1) — i.e. wide whitespace margins for ContentTrim to remove.
+func borderedPNG(t *testing.T, w, h, x0, y0, x1, y1 int) []byte {
+	t.Helper()
+	img := imaging.New(w, h, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			img.Set(x, y, color.NRGBA{A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
+		t.Fatalf("encode bordered png: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// TestServe_AppliesCrop drives the full serve path: a page with whitespace
+// margins is trimmed when crop is on and served whole when DisableCrop is set,
+// with a different ETag either way.
+func TestServe_AppliesCrop(t *testing.T) {
+	dir := t.TempDir()
+	date := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
+	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
+	// Content block rows 60..240 of a 300-tall page => ~40% is trimmable margin.
+	page := borderedPNG(t, 200, 300, 40, 60, 160, 240)
+	if _, err := arch.Put("a", source.Edition{Date: date, Media: source.MediaImage, Data: page}); err != nil {
+		t.Fatalf("archive.Put: %v", err)
+	}
+	opts := RenderOptions{MarginPct: -1} // no framing margin: output size == cropped page
+
+	on, err := New(Config{DataDir: dir, Width: 200, Sources: []Source{{ID: "a"}}})
+	if err != nil {
+		t.Fatalf("New (crop on): %v", err)
+	}
+	rOn, err := on.RenderFor(context.Background(), "a", opts)
+	if err != nil {
+		t.Fatalf("RenderFor (crop on): %v", err)
+	}
+	_ = on.Close()
+	if rOn.Crop.IsEffectivelyFull() {
+		t.Fatal("expected a crop to be applied, got none")
+	}
+	if rOn.Height >= 300 {
+		t.Fatalf("cropped height = %d, want < 300 (top/bottom margin trimmed)", rOn.Height)
+	}
+
+	off, err := New(Config{DataDir: dir, Width: 200, DisableCrop: true, Sources: []Source{{ID: "a"}}})
+	if err != nil {
+		t.Fatalf("New (crop off): %v", err)
+	}
+	defer func() { _ = off.Close() }()
+	rOff, err := off.RenderFor(context.Background(), "a", opts)
+	if err != nil {
+		t.Fatalf("RenderFor (crop off): %v", err)
+	}
+	if !rOff.Crop.IsEffectivelyFull() {
+		t.Fatal("crop-disabled engine should apply no crop")
+	}
+	if rOff.Height <= rOn.Height {
+		t.Fatalf("uncropped height %d should exceed cropped height %d", rOff.Height, rOn.Height)
+	}
+	if rOn.ETag == rOff.ETag {
+		t.Fatalf("crop on/off must differ in ETag, both = %s", rOn.ETag)
+	}
+}
+
 // uniformPNG returns PNG bytes for a w x h image of the given gray level.
 func uniformPNG(t *testing.T, w, h int, level uint8) []byte {
 	t.Helper()

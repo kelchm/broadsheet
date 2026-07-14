@@ -150,6 +150,7 @@ Everything's an env var:
 | `BROADSHEET_WIDTH` | `1600` | Master width — what we cache at. `?w=` resizes down from here. |
 | `BROADSHEET_POLL_INTERVAL` | `30m` | How often the background loop checks upstream |
 | `BROADSHEET_ARCHIVE_DAYS` | `14` | How many days of editions to keep |
+| `BROADSHEET_CROP` | `auto` | `auto` trims each page to its content bounds (safe — whitespace and printer's marks only); `off` serves the full master |
 | `BROADSHEET_ADMIN_TOKEN` | *(unset)* | When set, mutating `/api/v1` calls require `Authorization: Bearer <token>`. Set it before exposing the server beyond a trusted network. |
 | `BROADSHEET_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 

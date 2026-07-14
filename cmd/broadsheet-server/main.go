@@ -31,6 +31,9 @@ type envConfig struct {
 	LogLevel     string        `env:"BROADSHEET_LOG_LEVEL" envDefault:"info"`
 	PollInterval time.Duration `env:"BROADSHEET_POLL_INTERVAL" envDefault:"30m"`
 	ArchiveDays  int           `env:"BROADSHEET_ARCHIVE_DAYS" envDefault:"14"`
+	// Crop trims each served page to its content bounds (safe: whitespace and
+	// printer's marks only). "auto" (default) is on; "off" serves full pages.
+	Crop string `env:"BROADSHEET_CROP" envDefault:"auto"`
 	// AdminToken, when set, gates mutating /api/v1 calls behind
 	// "Authorization: Bearer <token>". Empty = open (trusted-network default).
 	AdminToken string `env:"BROADSHEET_ADMIN_TOKEN"`
@@ -82,6 +85,7 @@ func main() {
 		Width:        ec.Width,
 		PollInterval: ec.PollInterval,
 		ArchiveDays:  ec.ArchiveDays,
+		DisableCrop:  strings.EqualFold(ec.Crop, "off"),
 		Logger:       logger,
 	})
 	if err != nil {
@@ -435,6 +439,10 @@ func writeImageBody(w http.ResponseWriter, res *broadsheet.Result) {
 	w.Header().Set("X-Broadsheet-Height", fmt.Sprintf("%d", res.Height))
 	if res.Stale {
 		w.Header().Set("X-Broadsheet-Stale", "true")
+	}
+	if c := res.Crop; !c.IsEffectivelyFull() {
+		// Normalized crop applied before framing: x,y,w,h (2 decimals).
+		w.Header().Set("X-Broadsheet-Crop", fmt.Sprintf("%.2f,%.2f,%.2f,%.2f", c.X, c.Y, c.W, c.H))
 	}
 	_, _ = w.Write(res.Image) //nolint:gosec // G705: res.Image is server-rendered PNG bytes served as image/png, not user-controlled markup
 }
