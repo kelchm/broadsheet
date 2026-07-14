@@ -3,6 +3,7 @@ package broadsheet
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"image"
 	"image/color"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/kelchm/broadsheet/internal/archive"
 	"github.com/kelchm/broadsheet/internal/catalog"
 	"github.com/kelchm/broadsheet/internal/source"
+	"github.com/kelchm/broadsheet/internal/store"
 )
 
 func TestMemCursors_AdvancePerDevice(t *testing.T) {
@@ -68,10 +70,10 @@ func TestCompose_Dimensions(t *testing.T) {
 	}
 }
 
-// uniformPNG returns PNG bytes for a w x h image of the given gray level.
-func uniformPNG(t *testing.T, w, h int, level uint8) []byte {
+// uniformPNG returns PNG bytes for a small fixture image of the given gray level.
+func uniformPNG(t *testing.T, level uint8) []byte {
 	t.Helper()
-	img := imaging.New(w, h, color.NRGBA{R: level, G: level, B: level, A: 255})
+	img := imaging.New(32, 48, color.NRGBA{R: level, G: level, B: level, A: 255})
 	var buf bytes.Buffer
 	if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
 		t.Fatalf("encode fixture png: %v", err)
@@ -81,14 +83,15 @@ func uniformPNG(t *testing.T, w, h int, level uint8) []byte {
 
 // newTestEngine builds an engine over a temp DataDir with one MediaImage
 // edition archived for source "a". Providers are nil: these tests never poll.
-func newTestEngine(t *testing.T, width int, srcIDs ...string) (*Engine, *archive.Store, time.Time) {
+func newTestEngine(t *testing.T, srcIDs ...string) (*Engine, *archive.Store, time.Time) {
 	t.Helper()
+	const width = 64
 	dir := t.TempDir()
 	date := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
 
 	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
 	if _, err := arch.Put("a", source.Edition{
-		Date: date, Media: source.MediaImage, Data: uniformPNG(t, 32, 48, 0), // black
+		Date: date, Media: source.MediaImage, Data: uniformPNG(t, 0), // black
 	}); err != nil {
 		t.Fatalf("archive.Put: %v", err)
 	}
@@ -104,8 +107,140 @@ func newTestEngine(t *testing.T, width int, srcIDs ...string) (*Engine, *archive
 	return p, arch, date
 }
 
+func TestKnownSource_ArchivedHistoryOutlivesCatalog(t *testing.T) {
+	// No configured sources, but "a" has an archived edition — the shape of a
+	// paper dropped from the catalog whose archive hasn't yet aged out. Catalog
+	// membership and archive retention are independent, so "a" stays addressable
+	// (listable + renderable); an id with neither a config row nor an archive is
+	// genuinely unknown.
+	p, arch, date := newTestEngine(t) // archives "a", configures nothing
+	// "a" archived under its real name while it was active — the archive is
+	// self-describing, so its identity survives leaving the catalog.
+	if err := arch.SetName("a", "The A Paper"); err != nil {
+		t.Fatalf("SetName: %v", err)
+	}
+
+	if !p.knownSource("a") {
+		t.Fatal("archived-but-unconfigured source should stay known")
+	}
+	eds, err := p.ListEditions("a")
+	if err != nil || len(eds) != 1 || !eds[0].Equal(date) {
+		t.Fatalf("ListEditions(a) = %v, %v; want the one archived date", eds, err)
+	}
+	if _, err := p.RenderEdition(context.Background(), "a", date); err != nil {
+		t.Fatalf("RenderEdition(a) must render archived history: %v", err)
+	}
+	// Its history is labeled with the real name, not a bare id — sourced from the
+	// archive itself, since no catalog row remains.
+	if got := p.ArchiveName("a"); got != "The A Paper" {
+		t.Errorf("ArchiveName(a) = %q, want the archived label 'The A Paper'", got)
+	}
+	if p.knownSource("z") {
+		t.Error("an id with no config row and no archive must be unknown")
+	}
+}
+
+func TestBackfillArchiveLabels_LabelsExistingArchivesAtStartup(t *testing.T) {
+	// An existing deploy: a catalog paper ("ny-nyt") already has an archive
+	// written before self-describing metadata existed — no label. Booting the
+	// store-backed engine must backfill the label from the catalog name, so the
+	// paper's history keeps its name if it's later dropped (and disabled papers,
+	// which never re-archive, are covered the same way).
+	dir := t.TempDir()
+	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
+	if _, err := arch.Put("ny-nyt", source.Edition{
+		Date:  time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC),
+		Media: source.MediaImage, Data: uniformPNG(t, 0),
+	}); err != nil {
+		t.Fatalf("archive.Put: %v", err)
+	}
+	if got := arch.Name("ny-nyt"); got != "" {
+		t.Fatalf("precondition: archive should be unlabeled, got %q", got)
+	}
+
+	p, err := New(Config{DataDir: dir}) // store-backed: seeds the embedded catalog
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if got := p.ArchiveName("ny-nyt"); got != "The New York Times" {
+		t.Errorf("ArchiveName after backfill = %q, want the catalog name", got)
+	}
+}
+
+func TestLoadSources_LabelsDroppedPaperBeforePruning(t *testing.T) {
+	// The ordering guarantee: a paper present in an existing install's store but
+	// NOT in the current catalog (dropped in this release), with an unlabeled
+	// archive, must have its name stamped onto the archive BEFORE the reconcile
+	// prune deletes its row — so its history keeps its real name, not a bare id.
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "broadsheet.db"))
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	if err := st.SeedSources([]store.SourceRow{{
+		ID: "gone-paper", DisplayName: "The Gone Gazette",
+		ProviderType: "freedomforum", ProviderConfig: json.RawMessage(`{"prefix":"X"}`),
+	}}); err != nil {
+		t.Fatalf("seed pre-existing row: %v", err)
+	}
+	_ = st.Close()
+
+	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
+	if _, err := arch.Put("gone-paper", source.Edition{
+		Date:  time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC),
+		Media: source.MediaImage, Data: uniformPNG(t, 0),
+	}); err != nil {
+		t.Fatalf("archive.Put: %v", err)
+	}
+
+	// New() reconciles the embedded catalog (which has no "gone-paper"), so its
+	// row is pruned — but its archive was labeled first.
+	p, err := New(Config{DataDir: dir})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if got := p.ArchiveName("gone-paper"); got != "The Gone Gazette" {
+		t.Errorf("ArchiveName = %q, want the name preserved before the prune", got)
+	}
+	if !p.knownSource("gone-paper") {
+		t.Error("dropped-but-archived paper should still be addressable via its archive")
+	}
+}
+
+func TestArchive_PortableDropIn(t *testing.T) {
+	// The portability property: a self-describing archive directory transplanted
+	// into an install — an id in no catalog and no store — is browsable,
+	// renderable, and shows its real name from its own metadata. Startup labeling
+	// must NOT clobber the transplanted label with a blank.
+	dir := t.TempDir()
+	arch := &archive.Store{Root: filepath.Join(dir, "archive")}
+	if _, err := arch.Put("foreign", source.Edition{
+		Date:  time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC),
+		Media: source.MediaImage, Data: uniformPNG(t, 0),
+	}); err != nil {
+		t.Fatalf("archive.Put: %v", err)
+	}
+	if err := arch.SetName("foreign", "Le Journal"); err != nil {
+		t.Fatalf("SetName: %v", err)
+	}
+
+	p, err := New(Config{DataDir: dir}) // seeds the embedded catalog; "foreign" is not in it
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if !p.knownSource("foreign") {
+		t.Error("transplanted archive should be addressable")
+	}
+	if got := p.ArchiveName("foreign"); got != "Le Journal" {
+		t.Errorf("ArchiveName = %q, want the transplanted self-describing label", got)
+	}
+	if _, ok := p.ArchiveIndex()["foreign"]; !ok {
+		t.Error("transplanted archive should appear in the archive index")
+	}
+}
+
 func TestServe_CacheInvalidatesOnArchiveOverwrite(t *testing.T) {
-	p, arch, date := newTestEngine(t, 64, "a")
+	p, arch, date := newTestEngine(t, "a")
 
 	res, err := p.RenderFor(context.Background(), "a")
 	if err != nil {
@@ -118,7 +253,7 @@ func TestServe_CacheInvalidatesOnArchiveOverwrite(t *testing.T) {
 	// A corrected edition is re-posted: same day, different pixels. Bump the
 	// artifact's mtime well past the cached PNG's so freshness is unambiguous.
 	if _, err := arch.Put("a", source.Edition{
-		Date: date, Media: source.MediaImage, Data: uniformPNG(t, 32, 48, 255), // white
+		Date: date, Media: source.MediaImage, Data: uniformPNG(t, 255), // white
 	}); err != nil {
 		t.Fatalf("archive.Put overwrite: %v", err)
 	}
@@ -138,7 +273,7 @@ func TestServe_CacheInvalidatesOnArchiveOverwrite(t *testing.T) {
 }
 
 func TestServe_CacheKeyIncludesMasterWidth(t *testing.T) {
-	p, _, _ := newTestEngine(t, 64, "a")
+	p, _, _ := newTestEngine(t, "a")
 	if _, err := p.RenderFor(context.Background(), "a"); err != nil {
 		t.Fatalf("RenderFor: %v", err)
 	}
@@ -414,7 +549,7 @@ func TestServe_RasterizationsAreGloballyBounded(t *testing.T) {
 }
 
 func TestServe_VariantCacheSkipsMasterDecode(t *testing.T) {
-	p, arch, _ := newTestEngine(t, 64, "a")
+	p, arch, _ := newTestEngine(t, "a")
 
 	first, err := p.RenderFor(context.Background(), "a", RenderOptions{OutputWidth: 48})
 	if err != nil {

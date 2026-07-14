@@ -52,7 +52,7 @@ func TestReconcileOnce_ArchivesAndPersists(t *testing.T) {
 		}},
 		versions: map[string]string{"url30": "e30"},
 	}
-	src := source.Source{ID: "ny-nyt", Provider: prov}
+	src := source.Source{ID: "ny-nyt", DisplayName: "The New York Times", Provider: prov}
 	r, arch, store := newReconciler(t, []source.Source{src})
 
 	r.ReconcileOnce(context.Background())
@@ -65,6 +65,11 @@ func TestReconcileOnce_ArchivesAndPersists(t *testing.T) {
 	}
 	if rec := store.Snapshot().Sources["ny-nyt"]; rec.LastFetchOK == nil {
 		t.Error("expected LastFetchOK recorded after storing an edition")
+	}
+	// The archive is stamped with the display name so its history stays labeled
+	// after the paper leaves the catalog.
+	if got := arch.Name("ny-nyt"); got != "The New York Times" {
+		t.Errorf("archive label = %q, want the source's display name", got)
 	}
 }
 

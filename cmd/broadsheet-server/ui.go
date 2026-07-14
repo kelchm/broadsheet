@@ -389,7 +389,13 @@ func handleUIArchive(p *broadsheet.Engine) http.HandlerFunc {
 			for _, d := range ds {
 				have[d.UTC().Format("20060102")] = true
 			}
+			// Prefer the live catalog name; for a paper dropped from the catalog,
+			// fall back to the name its archive was collected under; only then the
+			// bare id.
 			name := names[id]
+			if name == "" {
+				name = p.ArchiveName(id)
+			}
 			if name == "" {
 				name = id
 			}

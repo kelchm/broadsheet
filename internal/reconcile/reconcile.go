@@ -259,6 +259,10 @@ func (r *Reconciler) ReconcileSource(ctx context.Context, src source.Source, now
 	}
 
 	if stored > 0 {
+		// Stamp the archive with the source's display name so its history stays
+		// labeled after the paper leaves the catalog (the archive is self-
+		// describing; the store row may be pruned).
+		_ = r.Archive.SetName(src.ID, src.DisplayName)
 		_ = r.Store.RecordSuccess(src.ID, now)
 		log.Info("archived editions", "source", src.ID, "count", stored)
 	}
