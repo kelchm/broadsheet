@@ -68,7 +68,8 @@ func NewContentTrim() *ContentTrim {
 	}
 }
 
-// Detect implements Detector. hints are unused. It never returns an error.
+// Detect implements Detector. hints are unused. It errors only if ctx is
+// canceled mid-scan; a page with no ink is (Full, false, nil), not an error.
 func (t *ContentTrim) Detect(ctx context.Context, img image.Image, _ Hints) (Box, bool, error) {
 	b := img.Bounds()
 	w, h := b.Dx(), b.Dy()

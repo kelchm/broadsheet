@@ -162,7 +162,7 @@ Worth knowing: Freedom Forum only keeps about two days live, so the archive fill
 
 ## Not done yet
 
-Smart crop. Right now a front page is served whole, exactly as the PDF rasterizes. The plan is to detect each paper's masthead and content edges and frame it automatically. There's a per-source hint field (`CropHints`) carried through for it, but the detector that would use it isn't written.
+Skybox removal. Pages are now trimmed to their content bounds automatically (see `BROADSHEET_CROP`) — that safely removes whitespace margins and top-bleed printer's marks. What's still unwritten is cropping away an ad or promo *skybox* above the masthead: that's a semantic call ("this band is an ad, not the paper") that a plain bounds scan can't make, so it needs a text-layer or learned detector. The crop seam's top edge is built to plug one in, and a per-source hint field (`CropHints`) is carried through for it.
 
 ## License
 

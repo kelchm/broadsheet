@@ -25,6 +25,7 @@ package crop
 import (
 	"context"
 	"image"
+	"math"
 )
 
 // AlgoVersion identifies the auto-detection behavior. It is folded into the
@@ -52,6 +53,13 @@ func Full() Box { return Box{X: 0, Y: 0, W: 1, H: 1} }
 // a bad detector or a malformed override can never produce an empty or
 // out-of-bounds crop.
 func (b Box) Clamp() Box {
+	// A non-finite coordinate (a corrupted override, a NaN from bad math) would
+	// slip past every comparison below, so reject it up front.
+	for _, v := range [4]float64{b.X, b.Y, b.W, b.H} {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return Full()
+		}
+	}
 	if b.W <= 0 || b.H <= 0 {
 		return Full()
 	}

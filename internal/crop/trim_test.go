@@ -70,8 +70,10 @@ func TestContentTrim_SkipsBleedStrip(t *testing.T) {
 	}
 }
 
-// The four guards: each perturbs one condition so the leading strip is treated
-// as content and NOT skipped (top stays on the strip, ~row 30 - pad ~= 20).
+// Three of the four bleed guards (the fourth, bleed-zone position, is
+// TestContentTrim_KeepsStripBelowBleedZone): each case violates one condition so
+// the leading strip is treated as content and NOT skipped (top stays on the
+// strip, ~row 30 - pad ~= 20).
 func TestContentTrim_KeepsStrip(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -121,7 +123,7 @@ func TestContentTrim_BleedZoneScalesWithHeight(t *testing.T) {
 		t.Fatalf("short-page top = %d, want ~45 (strip kept, below bleed zone)", shortTop)
 	}
 	tallTop, _ := topPx(t, page(3000, strip, span{200, 2900, 100, 900}))
-	if tallTop < 150 { // strip skipped -> lands on content (~200 - padY(15))
+	if !near(tallTop, 185, 6) { // strip skipped -> lands on content: 200 - padY(15)
 		t.Fatalf("tall-page top = %d, want ~185 (strip skipped, inside bleed zone)", tallTop)
 	}
 }
