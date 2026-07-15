@@ -34,6 +34,11 @@ import (
 // changes in a way that should re-crop already-cached editions.
 const AlgoVersion = "1"
 
+// minSpan is the smallest crop dimension (as a fraction of the image) treated as
+// legitimate. Anything smaller is a corrupt/degenerate box, so Clamp collapses
+// it to Full() rather than letting Apply emit a sliver crop.
+const minSpan = 0.02
+
 // Box is a crop rectangle in normalized coordinates: X, Y, W, H each in [0,1],
 // as fractions of the source image's width/height. Normalizing keeps a box
 // meaningful across master-width changes and across the master/downscaled
@@ -60,7 +65,7 @@ func (b Box) Clamp() Box {
 			return Full()
 		}
 	}
-	if b.W <= 0 || b.H <= 0 {
+	if b.W < minSpan || b.H < minSpan {
 		return Full()
 	}
 	x, y, w, h := b.X, b.Y, b.W, b.H
@@ -84,7 +89,7 @@ func (b Box) Clamp() Box {
 	if y+h > 1 {
 		h = 1 - y
 	}
-	if w <= 0 || h <= 0 {
+	if w < minSpan || h < minSpan {
 		return Full()
 	}
 	return Box{X: x, Y: y, W: w, H: h}

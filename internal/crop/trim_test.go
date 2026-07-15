@@ -4,8 +4,31 @@ import (
 	"context"
 	"image"
 	"image/color"
+	"math"
 	"testing"
 )
+
+func TestBoxClamp_RejectsDegenerate(t *testing.T) {
+	full := Full()
+	cases := []struct {
+		name string
+		in   Box
+		want Box
+	}{
+		{"nan", Box{X: math.NaN(), W: 0.5, H: 0.5}, full},
+		{"inf", Box{W: math.Inf(1), H: 0.5}, full},
+		{"below-floor", Box{X: 0.5, Y: 0.5, W: 0.001, H: 0.5}, full}, // < minSpan
+		{"negative", Box{W: -0.3, H: 0.5}, full},
+		{"legit", Box{X: 0.05, Y: 0.05, W: 0.9, H: 0.9}, Box{X: 0.05, Y: 0.05, W: 0.9, H: 0.9}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := c.in.Clamp(); got != c.want {
+				t.Fatalf("Clamp(%v) = %v, want %v", c.in, got, c.want)
+			}
+		})
+	}
+}
 
 // span is an ink rectangle [y0,y1)×[x0,x1) painted onto a white page.
 type span struct{ y0, y1, x0, x1 int }
