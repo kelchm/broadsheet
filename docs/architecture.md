@@ -223,6 +223,36 @@ still the source of truth), so it can be added whenever without disruption.
 Per-request `?w=` resizes down from the cached master (see [sizing](#sizing));
 those per-width outputs are computed per request, not stored.
 
+## Cropping
+
+Cropping tightens a page before it's framed. It runs at serve time on the
+decoded master — *after* rendering, *before* [framing](#sizing-and-framing) — so
+the master render stays crop-agnostic. That's deliberate: a crop is metadata,
+not a new artifact, so changing one never re-renders a PNG; it only mints a new
+ETag (the crop identity folds into it, so caches invalidate correctly).
+
+The Phase 1 detector is **content-trim** (`internal/crop`): it finds the
+bounding box of ink and trims the blank margins to it. It also steps over a
+*leading bleed strip* — the registration marks, CMYK bars, or plate/fold ident
+code many press PDFs carry in the extreme-top bleed (the NYT's
+`C M Y K … Nxxx,…,Bs-4C,E1`) — but only a band that is provably junk: thin,
+faint, high on the page, and separated from the body by a clear whitespace gap.
+Every rule is conservative enough that it can never cut real content; the worst
+case is that it trims nothing.
+
+What it deliberately does *not* do is remove an ad or promo *skybox* above the
+masthead: that is thick content-grade ink, indistinguishable from a headline to
+a bounds scan. Deciding "that band is an ad, not the paper" is a semantic call
+that needs a text-layer or learned detector — a later phase. The seam is built
+for it: the crop's *top edge* is the pluggable axis (a smarter masthead detector
+drops in there), while content-trim keeps owning the sides, bottom, and a safe
+fallback top.
+
+Resolution order per source: a stored `crop_overrides` box (an operator edit — a
+later feature) wins; otherwise the live auto-detector runs. Crop is on by default
+(it is safe); `BROADSHEET_CROP=off` serves the full master. The applied box is
+echoed in `X-Broadsheet-Crop`.
+
 ## HTTP API
 
 Every *device-plane* handler is a pure read over the local archive/cache —
@@ -254,7 +284,8 @@ The image endpoints take framing params — `?w=` / `?h=` (target size),
 `?sources=<ids>`, `?interval=<dur>`, `?phase=<n>`, `?slot=<n>`. Every response
 sets `X-Broadsheet-Source`, `-Width`, `-Height`, and `-Days-Old`, plus
 `X-Broadsheet-Stale: true` when a slot's source had nothing archived and the next
-source with content was substituted. Rotation responses add `X-Broadsheet-Slot`
+source with content was substituted, and `X-Broadsheet-Crop: x,y,w,h`
+(normalized) when a crop was applied. Rotation responses add `X-Broadsheet-Slot`
 and `X-Broadsheet-Next-Change` (seconds until the rotation advances).
 
 `X-Broadsheet-Days-Old` is `floor(now − edition date)` in whole days — elapsed time
@@ -330,6 +361,7 @@ a TRMNL, a Home Assistant card, and a browser tab.
 | `BROADSHEET_WIDTH` | `1600` | Master render width (quality ceiling) |
 | `BROADSHEET_POLL_INTERVAL` | `30m` | Reconciler cadence |
 | `BROADSHEET_ARCHIVE_DAYS` | `14` | PDF archive retention |
+| `BROADSHEET_CROP` | `auto` | Crop stage: `auto` trims each page to its content bounds (safe); `off` serves the full master |
 | `BROADSHEET_ADMIN_TOKEN` | *(unset)* | Bearer token gating mutating `/api/v1` calls |
 | `BROADSHEET_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
@@ -385,6 +417,8 @@ internal/
   archive/           durable PDF store: atomic Put, Newest, prune
   render/            MediaType-aware "normalize to master PNG" (wraps rasterize)
   rasterize/         PDF -> image (go-fitz / MuPDF)
+  crop/              content-trim detector: normalized Box + Detector seam
+
   store/             broadsheet.db (SQLite): sources, provider ETags, health events
   catalog/           embedded catalog.json: the browsable list of known papers
   cache/             legacy state.json reader (one-time import only)
