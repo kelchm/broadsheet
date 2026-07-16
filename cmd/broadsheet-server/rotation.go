@@ -160,9 +160,14 @@ var rotationTmpl = template.Must(template.New("rotation").Parse(`<!doctype html>
 <style>
   :root { --pad: 3vmin; }
   html, body { margin: 0; height: 100%; background: #fff; }
-  body { box-sizing: border-box; padding: var(--pad); }
-  .sheet { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
-  body.cover .sheet { object-fit: cover; }
+  body { box-sizing: border-box; padding: var(--pad); overflow: hidden; }
+  /* Default (no fit=): fill the viewport width, keep the aspect ratio, pin to
+     the top, and clip whatever runs past the bottom edge. */
+  .sheet { display: block; width: 100%; height: auto; background: #fff; }
+  /* fit=contain: scale the whole page to fit inside the viewport, letterboxed. */
+  body.contain .sheet { height: 100%; object-fit: contain; }
+  /* fit=cover: fill the viewport, center-cropping the overflow. */
+  body.cover .sheet { height: 100%; object-fit: cover; }
 </style>
 </head>
 <body>
@@ -180,7 +185,9 @@ var rotationTmpl = template.Must(template.New("rotation").Parse(`<!doctype html>
   if (margin !== null) {
     document.documentElement.style.setProperty('--pad', (parseFloat(margin) || 0) + 'vmin');
   }
-  if (qparam('fit') === 'cover') document.body.classList.add('cover');
+  // Default is fit-to-width, top-aligned (CSS above); contain/cover opt out.
+  var fit = qparam('fit');
+  if (fit === 'contain' || fit === 'cover') document.body.classList.add(fit);
 
   var I = {{.IntervalSec}};   // dwell seconds
   var phase = {{.Phase}};
