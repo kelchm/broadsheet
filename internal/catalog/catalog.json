@@ -68,15 +68,6 @@
   "location": "Fairbanks, Alaska"
  },
  {
-  "id": "al-cch",
-  "name": "The Cherokee County Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "AL_CCH"
-  },
-  "location": "Centre, Alabama"
- },
- {
   "id": "al-dd",
   "name": "The Decatur Daily",
   "provider": "freedomforum",
@@ -239,15 +230,6 @@
   "location": "Vorarlberg, Austria"
  },
  {
-  "id": "aut-sn",
-  "name": "Salzburger Nachrichten",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "AUT_SN"
-  },
-  "location": "Salzburg, Austria"
- },
- {
   "id": "aut-vn",
   "name": "Vorarlberger Nachrichten",
   "provider": "freedomforum",
@@ -273,51 +255,6 @@
    "prefix": "AZ_AR"
   },
   "location": "Phoenix, Arizona"
- },
- {
-  "id": "az-cvr",
-  "name": "Chino Valley Review",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "AZ_CVR"
-  },
-  "location": "Chino Valley, Arizona"
- },
- {
-  "id": "az-dc",
-  "name": "The Daily Courier",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "AZ_DC"
-  },
-  "location": "Prescott, Arizona"
- },
- {
-  "id": "az-kdm",
-  "name": "Kingman Miner",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "AZ_KDM"
-  },
-  "location": "Kingman, Arizona"
- },
- {
-  "id": "az-pvt",
-  "name": "Prescott Valley Tribune",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "AZ_PVT"
-  },
-  "location": "Prescott Valley, Arizona"
- },
- {
-  "id": "az-tnh",
-  "name": "Today's News-Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "AZ_TNH"
-  },
-  "location": "Lake Havasu City, Arizona"
  },
  {
   "id": "bel-dm",
@@ -356,15 +293,6 @@
   "location": "Itaja\u00ed, Brazil"
  },
  {
-  "id": "bra-dt",
-  "name": "Di\u00e1rio de Taubat\u00e9",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "BRA_DT"
-  },
-  "location": "Taubat\u00e9, Brazil"
- },
- {
   "id": "bra-fdsp",
   "name": "Folha de S. Paulo",
   "provider": "freedomforum",
@@ -381,15 +309,6 @@
    "prefix": "BRA_OE"
   },
   "location": "S\u00e3o Paulo, Brazil"
- },
- {
-  "id": "bra^pe-jdc",
-  "name": "Jornal do Commercio",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "BRA^PE_JDC"
-  },
-  "location": "Recife, Brazil"
  },
  {
   "id": "ca-db",
@@ -563,15 +482,6 @@
   "location": "Sacramento, California"
  },
  {
-  "id": "ca-sc",
-  "name": "The Salinas Californian",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "CA_SC"
-  },
-  "location": "Salinas, California"
- },
- {
   "id": "ca-sgvt",
   "name": "San Gabriel Valley Tribune",
   "provider": "freedomforum",
@@ -597,15 +507,6 @@
    "prefix": "CA_TS"
   },
   "location": "San Bernardino, California"
- },
- {
-  "id": "ca-tt",
-  "name": "The Tribune",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "CA_TT"
-  },
-  "location": "San Luis Obispo, California"
  },
  {
   "id": "ca-vcs",
@@ -714,15 +615,6 @@
    "prefix": "CAN_TGAM"
   },
   "location": "Toronto, Canada"
- },
- {
-  "id": "can-tmg",
-  "name": "The Macleod Gazette",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "CAN_TMG"
-  },
-  "location": "Fort Macleod, Canada"
  },
  {
   "id": "can-tp",
@@ -959,15 +851,6 @@
   "location": "Waterbury, Connecticut"
  },
  {
-  "id": "ct-rc",
-  "name": "The Register Citizen",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "CT_RC"
-  },
-  "location": "Torrington, Connecticut"
- },
- {
   "id": "ct-rj",
   "name": "Record-Journal",
   "provider": "freedomforum",
@@ -1033,10 +916,8 @@
  {
   "id": "dc-wp",
   "name": "The Washington Post",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "DC_WP"
-  },
+  "provider": "washingtonpost",
+  "config": {},
   "location": "Washington, District of Columbia"
  },
  {
@@ -1083,15 +964,6 @@
    "prefix": "FIJI_FT"
   },
   "location": "Suva, Fiji"
- },
- {
-  "id": "fl-bh",
-  "name": "The Bradenton Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "FL_BH"
-  },
-  "location": "Bradenton, Florida"
  },
  {
   "id": "fl-dbnj",
@@ -1265,15 +1137,6 @@
   "location": "Ft. Lauderdale, Florida"
  },
  {
-  "id": "fl-tb",
-  "name": "TBT*",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "FL_TB"
-  },
-  "location": "St. Petersburg, Florida"
- },
- {
   "id": "fl-td",
   "name": "Tallahassee Democrat",
   "provider": "freedomforum",
@@ -1337,15 +1200,6 @@
   "location": "Atlanta, Georgia"
  },
  {
-  "id": "ga-le",
-  "name": "Ledger-Enquirer",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "GA_LE"
-  },
-  "location": "Columbus, Georgia"
- },
- {
   "id": "ga-rnt",
   "name": "Rome News-Tribune",
   "provider": "freedomforum",
@@ -1380,15 +1234,6 @@
    "prefix": "GEOR_TM"
   },
   "location": "Tbilisi, Georgia"
- },
- {
-  "id": "ger-aa",
-  "name": "Augsburger Allgemeine",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "GER_AA"
-  },
-  "location": "Augsburg, Germany"
  },
  {
   "id": "ger-faz",
@@ -1499,15 +1344,6 @@
   "location": "Sioux City, Iowa"
  },
  {
-  "id": "ia-tg",
-  "name": "The Gazette",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "IA_TG"
-  },
-  "location": "Cedar Rapids, Iowa"
- },
- {
   "id": "ia-tt",
   "name": "Ames Tribune",
   "provider": "freedomforum",
@@ -1517,15 +1353,6 @@
   "location": "Ames, Iowa"
  },
  {
-  "id": "ia-wbt",
-  "name": "West Branch Times",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "IA_WBT"
-  },
-  "location": "West Branch, Iowa"
- },
- {
   "id": "id-bcdb",
   "name": "Bonner County Daily Bee",
   "provider": "freedomforum",
@@ -1533,15 +1360,6 @@
    "prefix": "ID_BCDB"
   },
   "location": "Sandpoint, Idaho"
- },
- {
-  "id": "id-bfh",
-  "name": "Bonners Ferry Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ID_BFH"
-  },
-  "location": "Bonners Ferry, Idaho"
  },
  {
   "id": "id-cdap",
@@ -1569,24 +1387,6 @@
    "prefix": "ID_LMT"
   },
   "location": "Lewiston, Idaho"
- },
- {
-  "id": "id-mpdn",
-  "name": "Moscow-Pullman Daily News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ID_MPDN"
-  },
-  "location": "Moscow, Idaho"
- },
- {
-  "id": "id-snp",
-  "name": "Shoshone News-Press",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ID_SNP"
-  },
-  "location": "Osburn, Idaho"
  },
  {
   "id": "id-tn",
@@ -1650,15 +1450,6 @@
    "prefix": "IL_DCN"
   },
   "location": "Danville, Illinois"
- },
- {
-  "id": "il-dh",
-  "name": "Daily Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "IL_DH"
-  },
-  "location": "Suburban Chicago, Illinois"
  },
  {
   "id": "il-dhr",
@@ -1778,15 +1569,6 @@
   "location": "Springfield, Illinois"
  },
  {
-  "id": "il-th",
-  "name": "The Hinsdalean",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "IL_TH"
-  },
-  "location": "Hinsdale, Illinois"
- },
- {
   "id": "il-tp",
   "name": "The Pantagraph",
   "provider": "freedomforum",
@@ -1832,15 +1614,6 @@
   "location": "Bloomington, Indiana"
  },
  {
-  "id": "in-ids",
-  "name": "Indiana Daily Student",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "IN_IDS"
-  },
-  "location": "Bloomington, Indiana"
- },
- {
   "id": "in-is",
   "name": "The Indianapolis Star",
   "provider": "freedomforum",
@@ -1857,15 +1630,6 @@
    "prefix": "IN_JC"
   },
   "location": "Lafayette, Indiana"
- },
- {
-  "id": "in-jg",
-  "name": "The Journal Gazette",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "IN_JG"
-  },
-  "location": "Fort Wayne, Indiana"
  },
  {
   "id": "in-kt",
@@ -2057,14 +1821,6 @@
   "location": "Jerusalem, Israel"
  },
  {
-  "id": "isr-ya",
-  "name": "Yedioth Ahronoth",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ISR_YA"
-  }
- },
- {
   "id": "ita-ls",
   "name": "La Stampa",
   "provider": "freedomforum",
@@ -2090,15 +1846,6 @@
    "prefix": "KS_HN"
   },
   "location": "Hutchinson, Kansas"
- },
- {
-  "id": "ks-ljw",
-  "name": "Lawrence Journal-World",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "KS_LJW"
-  },
-  "location": "Lawrence, Kansas"
  },
  {
   "id": "ks-sj",
@@ -2263,15 +2010,6 @@
   "location": "Alexandria, Louisiana"
  },
  {
-  "id": "lith-lr",
-  "name": "Lietuvos Rytas",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "LITH_LR"
-  },
-  "location": "Vilnius, Lithuania"
- },
- {
   "id": "lux-lw",
   "name": "Luxemburger Wort",
   "provider": "freedomforum",
@@ -2407,15 +2145,6 @@
   "location": "Kuala Lumpur, Malaysia"
  },
  {
-  "id": "md-cct",
-  "name": "Carroll County Times",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MD_CCT"
-  },
-  "location": "Westminster, Maryland"
- },
- {
   "id": "md-dt",
   "name": "The Daily Times",
   "provider": "freedomforum",
@@ -2432,24 +2161,6 @@
    "prefix": "MD_HM"
   },
   "location": "Hagerstown, Maryland"
- },
- {
-  "id": "md-tc",
-  "name": "The Capital",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MD_TC"
-  },
-  "location": "Annapolis, Maryland"
- },
- {
-  "id": "md-ts",
-  "name": "The Baltimore Sun",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MD_TS"
-  },
-  "location": "Baltimore, Maryland"
  },
  {
   "id": "me-kj",
@@ -2767,24 +2478,6 @@
   "location": "Port Huron, Michigan"
  },
  {
-  "id": "mn-bd",
-  "name": "Brainerd Dispatch",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MN_BD"
-  },
-  "location": "Brainerd, Minnesota"
- },
- {
-  "id": "mn-bp",
-  "name": "Bemidji Pioneer",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MN_BP"
-  },
-  "location": "Bemidji, Minnesota"
- },
- {
   "id": "mn-pp",
   "name": "Pioneer Press",
   "provider": "freedomforum",
@@ -2810,15 +2503,6 @@
    "prefix": "MN_ST"
   },
   "location": "Minneapolis, Minnesota"
- },
- {
-  "id": "mn-wct",
-  "name": "West Central Tribune",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MN_WCT"
-  },
-  "location": "Willmar, Minnesota"
  },
  {
   "id": "mo-cdt",
@@ -2857,15 +2541,6 @@
   "location": "Springfield, Missouri"
  },
  {
-  "id": "mo-nnl",
-  "name": "Nodaway News Leader",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MO_NNL"
-  },
-  "location": "Maryville, Missouri"
- },
- {
   "id": "mo-slpd",
   "name": "St. Louis Post-Dispatch",
   "provider": "freedomforum",
@@ -2891,15 +2566,6 @@
    "prefix": "MS_CL"
   },
   "location": "Jackson, Mississippi"
- },
- {
-  "id": "ms-gc",
-  "name": "Greenwood Commonwealth",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "MS_GC"
-  },
-  "location": "Greenwood, Mississippi"
  },
  {
   "id": "ms-ha",
@@ -3109,42 +2775,6 @@
   "location": "Winston-Salem, North Carolina"
  },
  {
-  "id": "nd-dp",
-  "name": "The Dickinson Press",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ND_DP"
-  },
-  "location": "Dickinson, North Dakota"
- },
- {
-  "id": "nd-gfh",
-  "name": "Grand Forks Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ND_GFH"
-  },
-  "location": "Grand Forks, North Dakota"
- },
- {
-  "id": "nd-js",
-  "name": "The Jamestown Sun",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ND_JS"
-  },
-  "location": "Jamestown, North Dakota"
- },
- {
-  "id": "nd-tf",
-  "name": "The Forum",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ND_TF"
-  },
-  "location": "Fargo, North Dakota"
- },
- {
   "id": "ne-bds",
   "name": "Beatrice Daily Sun",
   "provider": "freedomforum",
@@ -3170,15 +2800,6 @@
    "prefix": "NE_FT"
   },
   "location": "Fremont, Nebraska"
- },
- {
-  "id": "ne-ljs",
-  "name": "Lincoln Journal Star",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "NE_LJS"
-  },
-  "location": "Lincoln, Nebraska"
  },
  {
   "id": "ne-owh",
@@ -3269,15 +2890,6 @@
    "prefix": "NH_FDD"
   },
   "location": "Dover, New Hampshire"
- },
- {
-  "id": "nh-mlt",
-  "name": "Monadnock Ledger-Transcript",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "NH_MLT"
-  },
-  "location": "Peterborough, New Hampshire"
  },
  {
   "id": "nh-ph",
@@ -3406,15 +3018,6 @@
   "location": "Trenton, New Jersey"
  },
  {
-  "id": "nm-dh",
-  "name": "The Deming Headlight",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "NM_DH"
-  },
-  "location": "Deming, New Mexico"
- },
- {
   "id": "nm-lcsn",
   "name": "Las Cruces Sun-News",
   "provider": "freedomforum",
@@ -3467,15 +3070,6 @@
    "prefix": "NV_RGJ"
   },
   "location": "Reno, Nevada"
- },
- {
-  "id": "nv-sun",
-  "name": "Las Vegas Sun",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "NV_SUN"
-  },
-  "location": "Las Vegas, Nevada"
  },
  {
   "id": "ny-bn",
@@ -3739,24 +3333,6 @@
   "location": "Cleveland, Ohio"
  },
  {
-  "id": "oh-ct",
-  "name": "The Chronicle-Telegram",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "OH_CT"
-  },
-  "location": "Elyria, Ohio"
- },
- {
-  "id": "oh-ddn",
-  "name": "Dayton Daily News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "OH_DDN"
-  },
-  "location": "Dayton, Ohio"
- },
- {
   "id": "oh-dr",
   "name": "The Daily Record",
   "provider": "freedomforum",
@@ -3766,15 +3342,6 @@
   "location": "Wooster, Ohio"
  },
  {
-  "id": "oh-jn",
-  "name": "Journal News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "OH_JN"
-  },
-  "location": "Hamilton, Ohio"
- },
- {
   "id": "oh-leg",
   "name": "Lancaster Eagle-Gazette",
   "provider": "freedomforum",
@@ -3782,24 +3349,6 @@
    "prefix": "OH_LEG"
   },
   "location": "Lancaster, Ohio"
- },
- {
-  "id": "oh-ln",
-  "name": "The Lima News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "OH_LN"
-  },
-  "location": "Lima, Ohio"
- },
- {
-  "id": "oh-mg",
-  "name": "The Medina-Gazette",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "OH_MG"
-  },
-  "location": "Medina, Ohio"
  },
  {
   "id": "oh-mnj",
@@ -3865,15 +3414,6 @@
   "location": "Canton, Ohio"
  },
  {
-  "id": "oh-sns",
-  "name": "Springfield News Sun",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "OH_SNS"
-  },
-  "location": "Springfield, Ohio"
- },
- {
   "id": "oh-tb",
   "name": "The Blade",
   "provider": "freedomforum",
@@ -3937,15 +3477,6 @@
   "location": "Tulsa, Oklahoma"
  },
  {
-  "id": "ok-wedn",
-  "name": "Weatherford Daily News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "OK_WEDN"
-  },
-  "location": "Weatherford, Oklahoma"
- },
- {
   "id": "or-rg",
   "name": "The Register-Guard",
   "provider": "freedomforum",
@@ -3982,15 +3513,6 @@
   "location": "Altoona, Pennsylvania"
  },
  {
-  "id": "pa-cdt",
-  "name": "Centre Daily Times",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "PA_CDT"
-  },
-  "location": "State College, Pennsylvania"
- },
- {
   "id": "pa-cpo",
   "name": "Chambersburg Public Opinion",
   "provider": "freedomforum",
@@ -4018,33 +3540,6 @@
   "location": "Somerset, Pennsylvania"
  },
  {
-  "id": "pa-di",
-  "name": "The Daily Item",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "PA_DI"
-  },
-  "location": "Sunbury, Pennsylvania"
- },
- {
-  "id": "pa-egn",
-  "name": "Erie Gay News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "PA_EGN"
-  },
-  "location": "Erie, Pennsylvania"
- },
- {
-  "id": "pa-et",
-  "name": "The Express-Times",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "PA_ET"
-  },
-  "location": "Easton, Pennsylvania"
- },
- {
   "id": "pa-etn",
   "name": "Erie Times-News",
   "provider": "freedomforum",
@@ -4054,15 +3549,6 @@
   "location": "Erie, Pennsylvania"
  },
  {
-  "id": "pa-her",
-  "name": "The Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "PA_HER"
-  },
-  "location": "Sharon, Pennsylvania"
- },
- {
   "id": "pa-ldn",
   "name": "Lebanon Daily News",
   "provider": "freedomforum",
@@ -4070,15 +3556,6 @@
    "prefix": "PA_LDN"
   },
   "location": "Lebanon, Pennsylvania"
- },
- {
-  "id": "pa-lnp",
-  "name": "LNP",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "PA_LNP"
-  },
-  "location": "Lancaster, Pennsylvania"
  },
  {
   "id": "pa-mc",
@@ -4189,15 +3666,6 @@
   "location": "Waynesboro, Pennsylvania"
  },
  {
-  "id": "pa-yd",
-  "name": "York Dispatch",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "PA_YD"
-  },
-  "location": "York, Pennsylvania"
- },
- {
   "id": "pa-ydr",
   "name": "York Daily Record",
   "provider": "freedomforum",
@@ -4234,24 +3702,6 @@
   "location": "Manila, Philippines"
  },
  {
-  "id": "pol-kp",
-  "name": "Kurier Poranny",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "POL_KP"
-  },
-  "location": "Bialystok, Poland"
- },
- {
-  "id": "qatar-ts",
-  "name": "The Peninsula",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "QATAR_TS"
-  },
-  "location": "Doha, Qatar"
- },
- {
   "id": "ri-ndn",
   "name": "Newport Daily News",
   "provider": "freedomforum",
@@ -4270,24 +3720,6 @@
   "location": "Providence, Rhode Island"
  },
  {
-  "id": "ri-ws",
-  "name": "The Westerly Sun",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "RI_WS"
-  },
-  "location": "Westerly, Rhode Island"
- },
- {
-  "id": "rom-iz",
-  "name": "Informatia Zilei",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "ROM_IZ"
-  },
-  "location": "Satu Mare, Romania"
- },
- {
   "id": "rus-mp",
   "name": "Moskovskaya Pravda",
   "provider": "freedomforum",
@@ -4302,14 +3734,6 @@
   "provider": "freedomforum",
   "config": {
    "prefix": "SAF_CT"
-  }
- },
- {
-  "id": "saf-ti",
-  "name": "The Independent",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "SAF_TI"
   }
  },
  {
@@ -4410,15 +3834,6 @@
    "prefix": "SD_AN"
   },
   "location": "Aberdeen, South Dakota"
- },
- {
-  "id": "sd-dr",
-  "name": "Mitchell Republic",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "SD_DR"
-  },
-  "location": "Mitchell, South Dakota"
  },
  {
   "id": "sd-rcj",
@@ -4538,15 +3953,6 @@
   "location": "Lleida, Spain"
  },
  {
-  "id": "swe-dn",
-  "name": "Dagens Nyheter",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "SWE_DN"
-  },
-  "location": "Stockholm, Sweden"
- },
- {
   "id": "swe-ex",
   "name": "Expressen",
   "provider": "freedomforum",
@@ -4572,15 +3978,6 @@
    "prefix": "SWE_KV"
   },
   "location": "Malm\u00f6, Sweden"
- },
- {
-  "id": "swi-bk",
-  "name": "Blick",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "SWI_BK"
-  },
-  "location": "Z\u00fcrich, Switzerland"
  },
  {
   "id": "taiw-tmt",
@@ -4617,15 +4014,6 @@
    "prefix": "TN_DNJ"
   },
   "location": "Murfreesboro, Tennessee"
- },
- {
-  "id": "tn-dt",
-  "name": "The Daily Times",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "TN_DT"
-  },
-  "location": "Maryville, Tennessee"
  },
  {
   "id": "tn-js",
@@ -4700,15 +4088,6 @@
   "location": "Istanbul, Turkey"
  },
  {
-  "id": "tur-ticar",
-  "name": "Ticaret Gazetesi",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "TUR_TICAR"
-  },
-  "location": "Izmir, Turkey"
- },
- {
   "id": "tur-yen",
   "name": "Yeniasir",
   "provider": "freedomforum",
@@ -4763,15 +4142,6 @@
   "location": "Corpus Christi, Texas"
  },
  {
-  "id": "tx-dmn",
-  "name": "The Dallas Morning News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "TX_DMN"
-  },
-  "location": "Dallas, Texas"
- },
- {
   "id": "tx-dmnhn",
   "name": "The Dallas Morning News",
   "provider": "freedomforum",
@@ -4788,15 +4158,6 @@
    "prefix": "TX_DRC"
   },
   "location": "Denton, Texas"
- },
- {
-  "id": "tx-dv",
-  "name": "Dallas Voice",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "TX_DV"
-  },
-  "location": "Dallas, Texas"
  },
  {
   "id": "tx-ept",
@@ -4851,15 +4212,6 @@
    "prefix": "TX_LAJ"
   },
   "location": "Lubbock, Texas"
- },
- {
-  "id": "tx-ldn",
-  "name": "The Lufkin Daily News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "TX_LDN"
-  },
-  "location": "Lufkin, Texas"
  },
  {
   "id": "tx-lmt",
@@ -4970,15 +4322,6 @@
   "location": "Waco, Texas"
  },
  {
-  "id": "uae-ab",
-  "name": "The Daily Al Bayan",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "UAE_AB"
-  },
-  "location": "Dubai, United Arab Emirates"
- },
- {
   "id": "uae-gn",
   "name": "Gulf News",
   "provider": "freedomforum",
@@ -5022,15 +4365,6 @@
    "prefix": "UT_TS"
   },
   "location": "St. George, Utah"
- },
- {
-  "id": "va-ach",
-  "name": "Arlington Catholic Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "VA_ACH"
-  },
-  "location": "Arlington, Virginia"
  },
  {
   "id": "va-bhc",
@@ -5114,15 +4448,6 @@
   "location": "Waynesboro, Virginia"
  },
  {
-  "id": "va-pol",
-  "name": "POLITICO",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "VA_POL"
-  },
-  "location": "Arlington, Virginia"
- },
- {
   "id": "va-rtd",
   "name": "Richmond Times-Dispatch",
   "provider": "freedomforum",
@@ -5166,15 +4491,6 @@
    "prefix": "WA_BH"
   },
   "location": "Bellingham, Washington"
- },
- {
-  "id": "wa-cbh",
-  "name": "Columbia Basin Herald",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "WA_CBH"
-  },
-  "location": "Moses Lake, Washington"
  },
  {
   "id": "wa-col",
@@ -5267,15 +4583,6 @@
   "location": "Chippewa Falls, Wisconsin"
  },
  {
-  "id": "wi-dcn",
-  "name": "Dunn County News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "WI_DCN"
-  },
-  "location": "Menomonie, Wisconsin"
- },
- {
   "id": "wi-dt",
   "name": "Daily Tribune",
   "provider": "freedomforum",
@@ -5301,15 +4608,6 @@
    "prefix": "WI_HTR"
   },
   "location": "Manitowoc, Wisconsin"
- },
- {
-  "id": "wi-jg",
-  "name": "The Janesville Gazette",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "WI_JG"
-  },
-  "location": "Janesville, Wisconsin"
  },
  {
   "id": "wi-mjs",
@@ -5355,15 +4653,6 @@
    "prefix": "WI_PDR"
   },
   "location": "Portage, Wisconsin"
- },
- {
-  "id": "wi-sn",
-  "name": "The Star News",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "WI_SN"
-  },
-  "location": "Medford, Wisconsin"
  },
  {
   "id": "wi-sp",
@@ -5420,15 +4709,6 @@
   "location": "New York, New York"
  },
  {
-  "id": "wv-pns",
-  "name": "Parkersburg News and Sentinel",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "WV_PNS"
-  },
-  "location": "Parkersburg, West Virginia"
- },
- {
   "id": "wv-rh",
   "name": "The Register-Herald",
   "provider": "freedomforum",
@@ -5436,15 +4716,6 @@
    "prefix": "WV_RH"
   },
   "location": "Beckley, West Virginia"
- },
- {
-  "id": "wv-twv",
-  "name": "Times West Virginian",
-  "provider": "freedomforum",
-  "config": {
-   "prefix": "WV_TWV"
-  },
-  "location": "Fairmont, West Virginia"
  },
  {
   "id": "wy-cst",

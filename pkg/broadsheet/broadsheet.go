@@ -316,16 +316,31 @@ func New(cfg Config) (*Engine, error) {
 	}
 	importLegacyState(st, filepath.Join(cfg.DataDir, "state.json"), cfg.Logger)
 
+	// Build the archive before reconciling sources: loadSources stamps archive
+	// labels before it prunes, so a paper dropped in this release keeps its
+	// history labeled (and the archive stays self-describing).
+	arch := &archive.Store{Root: archiveDir}
+
 	srcs := cfg.Sources
 	if srcs == nil {
-		srcs, err = loadSources(st, cfg.Logger)
+		srcs, err = loadSources(st, arch, cfg.Logger)
 		if err != nil {
 			_ = st.Close()
 			return nil, err
 		}
+	} else {
+		// Embedder mode has no store to reconcile, but its archives should still
+		// be self-describing — label them from the configured sources. There's no
+		// prune here, so a label write failure is non-fatal; just note it.
+		names := make(map[string]string, len(srcs))
+		for _, s := range srcs {
+			names[s.ID] = s.DisplayName
+		}
+		if err := stampArchiveLabels(arch, names); err != nil && cfg.Logger != nil {
+			cfg.Logger.Warn("archive label stamping failed", "err", err)
+		}
 	}
 
-	arch := &archive.Store{Root: archiveDir}
 	p := &Engine{
 		cfg:         cfg,
 		sources:     srcs,
@@ -352,6 +367,32 @@ func New(cfg Config) (*Engine, error) {
 		CacheDir:  cacheDir,
 	}
 	return p, nil
+}
+
+// stampArchiveLabels writes each source's display name into its archive metadata
+// so history stays labeled — and the archive stays self-describing and portable —
+// after a paper leaves the catalog and its store row is pruned. It only touches
+// ids that already have an archive directory (SetName is a no-op for a blank name
+// and rewrites only when the name changed), so it never creates directories and
+// never clobbers a transplanted archive that already carries its own label.
+// stampArchiveLabels writes each source's display name into its archive metadata
+// so history stays labeled — and the archive stays self-describing and portable —
+// after a paper leaves the catalog and its store row is pruned. It only touches
+// ids that already have an archive directory (SetName never creates one), and
+// SetName rewrites only when the name changed. An id absent from names (a foreign
+// paper transplanted into the archive, not in the catalog or store) is skipped,
+// so its own label is left untouched; a known id is (re)labeled from names, which
+// is the intended refresh. It returns the first write error so the caller can
+// avoid a destructive prune when a soon-to-be-dropped paper's name wasn't saved.
+func stampArchiveLabels(arch *archive.Store, names map[string]string) error {
+	for _, id := range arch.SourceIDs() {
+		if name := names[id]; name != "" {
+			if err := arch.SetName(id, name); err != nil {
+				return fmt.Errorf("broadsheet: stamp archive label %q: %w", id, err)
+			}
+		}
+	}
+	return nil
 }
 
 // getSources returns the active source set (an immutable snapshot).
@@ -432,9 +473,22 @@ func (p *Engine) Catalog() ([]CatalogEntry, error) {
 	return out, nil
 }
 
+// ArchiveName returns the display name captured alongside a source's archive
+// while it was archiving, or "" if none. It lets the archive browser label a
+// paper that has left the catalog — whose live catalog name is gone — with the
+// name its history was collected under, instead of a bare id. The archive is
+// self-describing: identity travels with the data, not the catalog row.
+func (p *Engine) ArchiveName(id string) string {
+	return p.archive.Name(id)
+}
+
 // ArchiveIndex returns edition dates (oldest first, same-day duplicates
-// collapsed) for every source holding at least one archived edition —
-// including disabled papers, whose history remains browsable.
+// collapsed) for every source holding at least one archived edition — including
+// disabled papers and papers dropped from the catalog entirely, whose collected
+// history stays browsable until it ages out on the normal retention. Catalog
+// membership governs polling and the catalog UI; the archive is independent data
+// with its own age-based lifetime, so a dropped paper's front pages remain here
+// (and renderable, via knownSource) rather than vanishing the moment it's removed.
 func (p *Engine) ArchiveIndex() map[string][]time.Time {
 	out := map[string][]time.Time{}
 	for _, id := range p.archive.SourceIDs() {
@@ -486,16 +540,47 @@ func (p *Engine) RenderEdition(ctx context.Context, sourceID string, date time.T
 }
 
 // loadSources seeds the store from the embedded catalog, then loads the
-// enabled set. Seeding runs every boot: INSERT OR IGNORE means papers added to
-// the catalog in a new release appear in the store, while rows the user has
-// touched are never clobbered. Sources live as rows — provider type + JSON
-// config — decoded into typed providers here; a row that fails to decode is
+// enabled set. Seeding runs every boot and fully reconciles the store to the
+// catalog (see store.SeedSources): papers added to the catalog appear, dropped
+// papers are pruned, and existing papers' wiring is refreshed — all while the
+// user's enabled toggles are preserved. Sources live as rows — provider type +
+// JSON config — decoded into typed providers here; a row that fails to decode is
 // skipped with a warning rather than taking the whole engine down.
-func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) {
+func loadSources(st *store.Store, arch *archive.Store, logger *slog.Logger) ([]source.Source, error) {
 	entries, err := catalog.All()
 	if err != nil {
 		return nil, fmt.Errorf("broadsheet: load catalog: %w", err)
 	}
+
+	// Stamp archive labels BEFORE reconciling. Names come from the current store
+	// rows (which still hold the name of a paper about to be pruned) overlaid with
+	// the catalog (fresh names win for papers that survive). Doing this ahead of
+	// SeedSources' prune is what lets a paper dropped in *this* release keep its
+	// history labeled; disabled papers, which never re-archive, are covered the
+	// same way. The reconciler keeps active papers' labels fresh on each Put.
+	names := map[string]string{}
+	stored, err := st.ListSources(false)
+	if err != nil {
+		return nil, fmt.Errorf("broadsheet: list sources for archive labeling: %w", err)
+	}
+	for _, r := range stored {
+		names[r.ID] = r.DisplayName
+	}
+	for _, e := range entries {
+		names[e.ID] = e.Name
+	}
+	// If a label write fails, a paper about to be dropped this boot might lose the
+	// name it needs to keep its archived history readable — so skip the prune this
+	// boot rather than delete a row whose name we couldn't preserve. The upsert
+	// still runs; the prune retries on the next boot once the write succeeds.
+	prune := true
+	if err := stampArchiveLabels(arch, names); err != nil {
+		if logger != nil {
+			logger.Warn("archive label stamping failed; skipping catalog prune this boot", "err", err)
+		}
+		prune = false
+	}
+
 	rows := make([]store.SourceRow, 0, len(entries))
 	for i, e := range entries {
 		rows = append(rows, store.SourceRow{
@@ -504,7 +589,7 @@ func loadSources(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 			Enabled: e.Default, Position: i,
 		})
 	}
-	if err := st.SeedSources(rows); err != nil {
+	if err := st.SeedSources(rows, prune); err != nil {
 		return nil, fmt.Errorf("broadsheet: seed sources: %w", err)
 	}
 	return loadEnabled(st, logger)
@@ -533,12 +618,19 @@ func loadEnabled(st *store.Store, logger *slog.Logger) ([]source.Source, error) 
 	return out, nil
 }
 
-// knownSource reports whether an ID exists at all — in the live set, or (for
-// store-backed engines) anywhere in the catalog. Editions/refresh endpoints
-// must address disabled papers too: the API advertises the full catalog, and
-// the archive keeps serving a paper's history after it's toggled off.
+// knownSource reports whether an ID is addressable for reads — in the live set,
+// anywhere in the catalog (for store-backed engines), or holding archived
+// editions on disk. Editions/refresh endpoints must address disabled papers too
+// (the API advertises the full catalog), and archived history outlives catalog
+// membership: a paper toggled off — or dropped from the catalog entirely — stays
+// readable and renderable until its editions age out on the normal retention.
+// Catalog membership and the archive are independent lifetimes.
 func (p *Engine) knownSource(id string) bool {
 	if source.ByID(p.getSources(), id) != nil {
+		return true
+	}
+	// Archived history keeps a paper addressable even with no catalog row left.
+	if _, ok := p.archive.Newest(id); ok {
 		return true
 	}
 	if p.cfg.Sources != nil {

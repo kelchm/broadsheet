@@ -29,7 +29,7 @@ func newRotationEngine(t *testing.T, withContent map[string]bool, ids ...string)
 		srcs = append(srcs, Source{ID: id, DisplayName: id})
 		if withContent[id] {
 			if _, err := arch.Put(id, source.Edition{
-				Date: date, Media: source.MediaImage, Data: uniformPNG(t, 32, 48, 128),
+				Date: date, Media: source.MediaImage, Data: uniformPNG(t, 128),
 			}); err != nil {
 				t.Fatalf("archive.Put(%s): %v", id, err)
 			}

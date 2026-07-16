@@ -6,6 +6,7 @@
 package archive
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,21 @@ import (
 )
 
 const dateLayout = "20060102"
+
+// metaFile is the per-source sidecar that makes the archive self-describing: it
+// holds metadata captured while a source was archiving (currently just the
+// display name) so a paper's history stays labeled with its real name even after
+// it leaves the catalog and its store row is gone. JSON so fields can be added
+// without a format change; the leading dot and non-date name keep it out of
+// edition listings (list parses <date>.<ext> and skips everything else).
+const metaFile = ".meta.json"
+
+// sourceMeta is the archive's self-description for one source. Additive only —
+// an older binary ignores unknown fields, a newer one defaults missing ones.
+type sourceMeta struct {
+	// Name is the source's display name at the time it last archived.
+	Name string `json:"name,omitempty"`
+}
 
 // Store is an on-disk archive rooted at a directory. Layout:
 //
@@ -49,6 +65,22 @@ func mediaFromExt(e string) source.MediaType {
 	}
 }
 
+// containsEdition reports whether any directory entry is a date-named edition
+// file (the sidecar label and write litter are not editions). Used by Prune to
+// decide whether a source directory still holds anything worth keeping.
+func containsEdition(entries []os.DirEntry) bool {
+	for _, f := range entries {
+		if f.IsDir() {
+			continue
+		}
+		name := f.Name()
+		if _, err := time.Parse(dateLayout, strings.TrimSuffix(name, filepath.Ext(name))); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Put writes an edition to the archive atomically and returns its entry. An
 // edition on a day we already hold is overwritten (a re-posted/corrected
 // edition wins).
@@ -65,6 +97,50 @@ func (s *Store) Put(sourceID string, ed source.Edition) (Entry, error) {
 		return Entry{}, err
 	}
 	return Entry{SourceID: sourceID, Date: dayUTC(ed.Date), Media: ed.Media, Path: dst}, nil
+}
+
+// SetName records a source's display name in its archive metadata, so the
+// archive can label itself once the catalog no longer can. Idempotent; a blank
+// id or name is a no-op. Read-modify-write preserves any other metadata fields.
+// Written atomically like editions.
+func (s *Store) SetName(sourceID, name string) error {
+	if sourceID == "" || name == "" {
+		return nil
+	}
+	dir := filepath.Join(s.Root, sourceID)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("archive: mkdir %s: %w", dir, err)
+	}
+	m := s.meta(sourceID)
+	if m.Name == name {
+		return nil // already current — skip the rewrite
+	}
+	m.Name = name
+	b, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("archive: marshal meta for %s: %w", sourceID, err)
+	}
+	return writeAtomic(filepath.Join(dir, metaFile), b)
+}
+
+// Name returns the display name recorded for a source, or "" if none was ever
+// written (a pre-metadata archive, or a source that never archived).
+func (s *Store) Name(sourceID string) string {
+	return strings.TrimSpace(s.meta(sourceID).Name)
+}
+
+// meta reads a source's archive metadata, returning the zero value when absent
+// or unreadable (a pre-metadata archive is simply unlabeled, not an error).
+func (s *Store) meta(sourceID string) sourceMeta {
+	b, err := os.ReadFile(filepath.Join(s.Root, sourceID, metaFile)) //nolint:gosec // G304: archive path rooted at s.Root with an internal source id, not user input
+	if err != nil {
+		return sourceMeta{}
+	}
+	var m sourceMeta
+	if err := json.Unmarshal(b, &m); err != nil {
+		return sourceMeta{}
+	}
+	return m
 }
 
 // Has reports whether an edition for (sourceID, date's day) is already stored.
@@ -171,6 +247,16 @@ func (s *Store) Prune(retention time.Duration, now time.Time) (int, error) {
 					removed++
 				}
 			}
+		}
+		// Reclaim a source directory once no editions remain — e.g. a paper the
+		// catalog dropped, whose editions have all aged out. Read the directory
+		// explicitly and skip on error: list() returns nil on ANY ReadDir failure,
+		// so keying off it alone could mistake a transient read error for "empty"
+		// and RemoveAll a still-populated directory. RemoveAll also clears the label
+		// and any write litter; an active source that Puts again re-creates the dir.
+		dir := filepath.Join(s.Root, d.Name())
+		if entries, err := os.ReadDir(dir); err == nil && !containsEdition(entries) {
+			_ = os.RemoveAll(dir)
 		}
 	}
 	return removed, nil

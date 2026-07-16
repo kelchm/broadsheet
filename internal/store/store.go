@@ -137,25 +137,106 @@ type SourceRow struct {
 	Position       int
 }
 
-// SeedSources inserts rows that don't already exist (by ID). Existing rows are
-// left untouched — user edits win over catalog updates.
-func (s *Store) SeedSources(rows []SourceRow) error {
+// SeedSources reconciles the store against the catalog. The catalog owns a
+// paper's identity and wiring (display name, provider type + config, catalog
+// position); the store owns the user's one choice, its enabled flag. Every boot
+// it fully reconciles: a new paper is inserted with its catalog default; an
+// existing paper's wiring is refreshed from the catalog (that is how a catalog
+// fix — a repointed provider, a corrected config, a rename — reaches installs
+// that already have the row) while the user's enabled toggle is never clobbered
+// by the catalog's default; and a paper the catalog has dropped is deleted, so a
+// removed or permanently-broken source disappears from existing installs, not
+// only from fresh ones. (The Enabled field carried in each row is only the
+// catalog default; SetSourceEnabled is the sole writer of a user's choice.)
+//
+// Deletion is safe because the sources table is wholly catalog-derived — the
+// only writer of a row is this method, and embedders that supply their own
+// sources bypass the store entirely (Config.Sources) — so an id absent from the
+// catalog is unambiguously a removed paper. The one caveat is a downgrade:
+// running an older binary whose embedded catalog predates papers a newer binary
+// added would prune those rows (they return, at their catalog default, on the
+// next upgrade). An empty catalog never prunes, so a caller passing nothing
+// can't wipe the table.
+//
+// When prune is false the drop step is skipped (upsert only). The caller uses
+// this to avoid deleting a dropped paper's row before its archived display name
+// was safely preserved — losing the name is worse than a stale row that the next
+// (pruning) boot cleans up.
+func (s *Store) SeedSources(rows []SourceRow, prune bool) error {
+	if len(rows) == 0 {
+		return nil
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return fmt.Errorf("store: seed sources: %w", err)
 	}
+
+	// Snapshot existing ids up front so we can prune the ones the catalog no
+	// longer carries. Read fully and close before issuing writes on the tx.
+	existing := map[string]bool{}
+	idRows, err := tx.Query(`SELECT id FROM sources`)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("store: seed sources: read ids: %w", err)
+	}
+	for idRows.Next() {
+		var id string
+		if err := idRows.Scan(&id); err != nil {
+			_ = idRows.Close()
+			_ = tx.Rollback()
+			return fmt.Errorf("store: seed sources: scan id: %w", err)
+		}
+		existing[id] = true
+	}
+	if err := idRows.Err(); err != nil {
+		_ = idRows.Close()
+		_ = tx.Rollback()
+		return fmt.Errorf("store: seed sources: read ids: %w", err)
+	}
+	_ = idRows.Close()
+
+	incoming := make(map[string]bool, len(rows))
 	for _, r := range rows {
+		incoming[r.ID] = true
 		cfg := r.ProviderConfig
 		if len(cfg) == 0 {
 			cfg = json.RawMessage("{}")
 		}
 		if _, err := tx.Exec(
-			`INSERT OR IGNORE INTO sources (id, display_name, provider_type, provider_config, enabled, position)
-			 VALUES (?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO sources (id, display_name, provider_type, provider_config, enabled, position)
+			 VALUES (?, ?, ?, ?, ?, ?)
+			 ON CONFLICT(id) DO UPDATE SET
+			     display_name    = excluded.display_name,
+			     provider_type   = excluded.provider_type,
+			     provider_config = excluded.provider_config,
+			     position        = excluded.position`,
 			r.ID, r.DisplayName, r.ProviderType, string(cfg), r.Enabled, r.Position,
 		); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("store: seed source %s: %w", r.ID, err)
+		}
+	}
+
+	// Prune papers the catalog has dropped, plus their dependent state, so a
+	// removed source leaves nothing behind (a stale row would keep the reconciler
+	// polling a dead feed forever and clutter the catalog UI). Skipped when the
+	// caller couldn't first preserve dropped papers' archived names.
+	if prune {
+		for id := range existing {
+			if incoming[id] {
+				continue
+			}
+			for _, stmt := range []string{
+				`DELETE FROM sources WHERE id = ?`,
+				`DELETE FROM provider_versions WHERE source_id = ?`,
+				`DELETE FROM fetch_events WHERE source_id = ?`,
+				`DELETE FROM crop_overrides WHERE source_id = ?`,
+			} {
+				if _, err := tx.Exec(stmt, id); err != nil {
+					_ = tx.Rollback()
+					return fmt.Errorf("store: prune source %s: %w", id, err)
+				}
+			}
 		}
 	}
 	return tx.Commit()

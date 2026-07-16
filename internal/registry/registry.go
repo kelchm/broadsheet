@@ -11,6 +11,7 @@ import (
 
 	"github.com/kelchm/broadsheet/internal/catalog"
 	"github.com/kelchm/broadsheet/internal/provider/freedomforum"
+	"github.com/kelchm/broadsheet/internal/provider/washingtonpost"
 	"github.com/kelchm/broadsheet/internal/source"
 )
 
@@ -32,6 +33,16 @@ func Decode(providerType string, config json.RawMessage) (source.Provider, error
 			return nil, fmt.Errorf("registry: freedomforum config needs a prefix")
 		}
 		return freedomforum.FreedomForum{Prefix: c.Prefix}, nil
+	case "washingtonpost":
+		// Every field is optional — the provider defaults the front-page page,
+		// zone candidates, edition, and product. An empty config is valid.
+		var w washingtonpost.WashingtonPost
+		if len(config) > 0 {
+			if err := json.Unmarshal(config, &w); err != nil {
+				return nil, fmt.Errorf("registry: washingtonpost config: %w", err)
+			}
+		}
+		return washingtonpost.New(w.Page, w.Zones, w.Edition, w.Product), nil
 	default:
 		return nil, fmt.Errorf("registry: unknown provider type %q", providerType)
 	}

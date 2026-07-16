@@ -146,15 +146,58 @@ Sources live as *data* — a row in the store (and an entry in the embedded
 catalog): `provider_type` + a JSON config blob. The registry is the
 params-decoding seam that turns that data back into a typed provider value
 (`{"prefix": "NY_NYT"}` -> `FreedomForum{Prefix: "NY_NYT"}`), so the `Provider`
-interface never changed. On first boot the store is seeded from the catalog
-with the classic defaults enabled; embedders can still pass `Config.Sources`
-to bypass the store entirely.
+interface never changed. Embedders can still pass `Config.Sources` to bypass the
+store entirely.
+
+Every boot, seeding *reconciles* the store to the catalog rather than just
+filling it once. The split of ownership is the whole idea: the catalog owns a
+paper's identity and wiring (display name, provider type + config, position);
+the store owns the user's one choice, its enabled flag. So a new catalog paper
+is inserted (at its catalog default), an existing paper's wiring is refreshed —
+that is how a repointed provider or corrected config reaches installs that
+already have the row — and a paper the catalog has dropped is pruned, all while
+the user's enable/disable toggle is preserved. Pruning is safe precisely because
+the store is wholly catalog-derived; the one exception is an explicit
+`Config.Sources` engine, which has no store to reconcile.
+
+The **archive is independent of all this, and self-describing**. Catalog
+membership governs polling and what the catalog UI offers; the archive is keyed
+by source id and has its own age-based retention. A paper that's disabled — or
+dropped from the catalog outright — keeps its collected front pages browsable and
+renderable until they age out on the normal retention (`knownSource` treats an id
+with editions on disk as addressable). Removing a paper never deletes data as a
+side effect; the history just follows the same 14-day expiry as everything else.
+
+Each source directory also carries a tiny `.meta.json` sidecar (`{"name": …}`,
+additive JSON) that the reconciler stamps as it archives. That makes the archive
+*portable*: a `<id>/` directory dropped into any install shows up named and
+renderable with no catalog or store entry, because the browser resolves a name as
+catalog → sidecar → bare id, and `knownSource`/`ArchiveIndex` key off the files on
+disk. Labeling runs before the seed prune, so a paper dropped in the same release
+keeps its name; the sidecar ages out with the directory. (The store row's display
+name is the *rebuildable index*; the sidecar is the *durable identity* — the
+beets/OCI-label pattern, chosen over keeping a retired store row so the archive
+stands on its own.)
 
 ### Adding a provider
 
 Implement `Provider` in `internal/provider/<name>` and return `Edition`s with the
 right `Media`. Nothing else changes — the engine archives, renders (per `Media`),
 prunes, and serves the same way regardless of provider.
+
+`washingtonpost` is the second driver, and the first that isn't freedomforum. The
+Post publishes its print edition as per-page PDFs on an open CloudFront CDN, keyed
+by a full-date folder (`/20260713/A01_SU_EZ_DAILY_20260713.pdf`) rather than a
+day-of-month. Two things make it different, both absorbed inside the provider:
+the front-page filename carries a zone code that rotates day to day between a
+small set (`SU`/`RE`) — the Post publishes exactly one per day, so a poll probes
+the candidates and takes whichever exists — and a missing object typically comes
+back as a `403` (S3 `AccessDenied`), though CloudFront may also 404. Because the
+folder *is* the edition date,
+that date is exact, so there's no `Last-Modified` guessing. (The upstream that
+does list the exact URL, the "today's paper" HTML page, is Akamai bot-protected
+and unreliable from a headless poller; the CDN itself is open and honors
+conditional GET, so the provider talks to the CDN.)
 
 ## The reconciler
 

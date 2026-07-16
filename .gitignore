@@ -34,3 +34,6 @@ vendor/
 # root-level binaries from `go build ./cmd/...`
 /broadsheet
 /broadsheet-server
+
+# Claude Code worktrees, scratch, and session state
+/.claude/

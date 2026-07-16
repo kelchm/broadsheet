@@ -82,6 +82,12 @@ func (f FreedomForum) Poll(ctx context.Context, deps source.Deps, seen map[strin
 		case http.StatusNotFound:
 			// Nothing there — drop any stale token so we re-probe cleanly.
 		default:
+			// An unexpected status (typically an upstream 5xx) is a failed probe,
+			// not a determinate answer: count it toward the failure gate so an
+			// all-error poll surfaces as a failure instead of a silent healthy
+			// no-op, and retain the token so we retry next cycle.
+			probeErrs++
+			lastErr = fmt.Errorf("freedomforum: %s returned unexpected status %d", url, status)
 			if deps.Logger != nil {
 				deps.Logger.Warn("freedomforum unexpected status", "url", url, "status", status)
 			}
