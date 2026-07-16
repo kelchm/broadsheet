@@ -6,6 +6,25 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed: HTML display pages now fit to width, top-aligned
+
+The HTML display pages (`/rotation` for Visionect and the zero-config root `/`)
+default to fitting the image to the viewport **width**, keeping the aspect ratio,
+pinning the top of the page to the top of the viewport, and clipping whatever
+runs past the bottom. This keeps the masthead and lead story large and legible on
+panels whose aspect ratio differs from the paper's, instead of shrinking the whole
+page to a letterboxed thumbnail.
+
+- New `?fit=` values on the HTML pages: default (width, top-aligned),
+  `?fit=contain` (the previous behavior — whole page, letterboxed), and
+  `?fit=cover` (fill, center-crop). Pair with `?margin=0` to pin the image flush
+  to the top-left corner. `fit=width` is client-side CSS only; the raw-image
+  endpoint (`/rotation.png`) still frames with `contain`/`cover` server-side.
+- The URL builder's Fit control offers all three for the Visionect target
+  (defaulting to width) and `contain`/`cover` for the image/TRMNL targets.
+- **Behavior change:** existing HTML displays render fit-to-width on upgrade.
+  Add `?fit=contain` to the page URL to restore the previous letterboxed layout.
+
 ### Added: content-aware cropping
 
 Served pages are now trimmed to their content bounds before framing

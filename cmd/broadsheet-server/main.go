@@ -200,9 +200,14 @@ const displayHTML = `<!doctype html>
 <style>
   :root { --pad: 3vmin; }
   html, body { margin: 0; height: 100%; background: #fff; }
-  body { box-sizing: border-box; padding: var(--pad); }
-  .sheet { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
-  body.cover .sheet { object-fit: cover; }
+  body { box-sizing: border-box; padding: var(--pad); overflow: hidden; }
+  /* Default (no fit=): fill the viewport width, keep the aspect ratio, pin to
+     the top, and clip whatever runs past the bottom edge. */
+  .sheet { display: block; width: 100%; height: auto; background: #fff; }
+  /* fit=contain: scale the whole page to fit inside the viewport, letterboxed. */
+  body.contain .sheet { height: 100%; object-fit: contain; }
+  /* fit=cover: fill the viewport, center-cropping the overflow. */
+  body.cover .sheet { height: 100%; object-fit: cover; }
 </style>
 </head>
 <body>
@@ -213,12 +218,15 @@ const displayHTML = `<!doctype html>
   var q = new URLSearchParams(window.location.search);
 
   // Framing is done here in CSS, driven by the page URL:
-  //   ?margin=<n>  -> padding, in vmin (default 3)
-  //   ?fit=cover   -> object-fit: cover (crop to fill) instead of contain
+  //   ?margin=<n>    -> padding, in vmin (default 3)
+  //   default        -> fit to width, top-aligned, clipping the bottom overflow
+  //   ?fit=contain   -> scale the whole page to fit inside, letterboxed
+  //   ?fit=cover     -> fill the viewport, center-cropping the overflow
   if (q.has('margin')) {
     document.documentElement.style.setProperty('--pad', (parseFloat(q.get('margin')) || 0) + 'vmin');
   }
-  if (q.get('fit') === 'cover') document.body.classList.add('cover');
+  var fit = q.get('fit');
+  if (fit === 'contain' || fit === 'cover') document.body.classList.add(fit);
 
   // Fetch the image exactly once per load — each fetch advances this device's
   // rotation cursor server-side, so one fetch == one advance. We ask only for a

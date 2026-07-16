@@ -18,8 +18,8 @@
   <span id="pngopts">
     <label>Width <input id="w" type="number" placeholder="800" size="6"></label>
     <label>Height <input id="h" type="number" placeholder="480" size="6"></label>
-    <label>Fit <select id="fit"><option value="">contain</option><option value="cover">cover</option></select></label>
   </span>
+  <label id="fitopt">Fit <select id="fit"><option value="contain">contain</option><option value="cover">cover</option></select></label>
   <label id="sleepopt">Panel sleep <select id="sleep"><option value="">auto (Visionect)</option><option value="off">off</option></select></label>
 </form>
 <p><input id="out" readonly onclick="this.select()"> <button id="copy">copy</button></p>
@@ -41,8 +41,12 @@
     if (!forPage) {
       if ($('w').value) ps.push('w=' + $('w').value);
       if ($('h').value) ps.push('h=' + $('h').value);
-      if ($('fit').value) ps.push('fit=' + $('fit').value);
     } else if ($('sleep').value) ps.push('sleep=' + $('sleep').value);
+    // Fit applies to the HTML page (client-side CSS) and the raw image
+    // (server-side framing); emit it only when it differs from the target's
+    // default (width for the HTML page, contain for the image).
+    var fitDefault = $('target').value === 'visionect' ? 'width' : 'contain';
+    if ($('fit').value && $('fit').value !== fitDefault) ps.push('fit=' + $('fit').value);
     return ps.length ? '?' + ps.join('&') : '';
   }
   var HINTS = {
@@ -62,8 +66,27 @@
     ps.push('w=420');
     return '?' + ps.join('&');
   }
+  // The HTML page defaults to fit=width (fill width, top-align) and also offers
+  // contain/cover; the raw image and TRMNL envelope go through the server
+  // renderer, which frames with contain/cover alone. Reset to the target's
+  // default only when the target itself changes, so edits elsewhere on the form
+  // don't clobber a deliberate fit choice.
+  var lastTarget = null;
+  function setFitOptions(t) {
+    var sel = $('fit');
+    var opts = [['contain', 'contain'], ['cover', 'cover']];
+    if (t === 'visionect') opts.push(['width', 'width (top-align)']);
+    var def = t === 'visionect' ? 'width' : 'contain';
+    var want = t === lastTarget ? sel.value : def;
+    lastTarget = t;
+    sel.innerHTML = opts.map(function (o) {
+      return '<option value="' + o[0] + '">' + o[1] + '</option>';
+    }).join('');
+    sel.value = opts.some(function (o) { return o[0] === want; }) ? want : def;
+  }
   function update() {
     var t = $('target').value, url;
+    setFitOptions(t);
     if (t === 'visionect') url = base + '/rotation' + params(true);
     else if (t === 'png') url = base + '/rotation.png' + params(false);
     else url = base + '/api/display' + params(false);
