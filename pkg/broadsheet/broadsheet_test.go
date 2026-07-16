@@ -180,7 +180,7 @@ func TestLoadSources_LabelsDroppedPaperBeforePruning(t *testing.T) {
 	if err := st.SeedSources([]store.SourceRow{{
 		ID: "gone-paper", DisplayName: "The Gone Gazette",
 		ProviderType: "freedomforum", ProviderConfig: json.RawMessage(`{"prefix":"X"}`),
-	}}); err != nil {
+	}}, true); err != nil {
 		t.Fatalf("seed pre-existing row: %v", err)
 	}
 	_ = st.Close()

@@ -311,12 +311,15 @@ func New(cfg Config) (*Engine, error) {
 		}
 	} else {
 		// Embedder mode has no store to reconcile, but its archives should still
-		// be self-describing — label them from the configured sources.
+		// be self-describing — label them from the configured sources. There's no
+		// prune here, so a label write failure is non-fatal; just note it.
 		names := make(map[string]string, len(srcs))
 		for _, s := range srcs {
 			names[s.ID] = s.DisplayName
 		}
-		stampArchiveLabels(arch, names)
+		if err := stampArchiveLabels(arch, names); err != nil && cfg.Logger != nil {
+			cfg.Logger.Warn("archive label stamping failed", "err", err)
+		}
 	}
 
 	p := &Engine{
@@ -351,12 +354,24 @@ func New(cfg Config) (*Engine, error) {
 // ids that already have an archive directory (SetName is a no-op for a blank name
 // and rewrites only when the name changed), so it never creates directories and
 // never clobbers a transplanted archive that already carries its own label.
-func stampArchiveLabels(arch *archive.Store, names map[string]string) {
+// stampArchiveLabels writes each source's display name into its archive metadata
+// so history stays labeled — and the archive stays self-describing and portable —
+// after a paper leaves the catalog and its store row is pruned. It only touches
+// ids that already have an archive directory (SetName never creates one), and
+// SetName rewrites only when the name changed. An id absent from names (a foreign
+// paper transplanted into the archive, not in the catalog or store) is skipped,
+// so its own label is left untouched; a known id is (re)labeled from names, which
+// is the intended refresh. It returns the first write error so the caller can
+// avoid a destructive prune when a soon-to-be-dropped paper's name wasn't saved.
+func stampArchiveLabels(arch *archive.Store, names map[string]string) error {
 	for _, id := range arch.SourceIDs() {
 		if name := names[id]; name != "" {
-			_ = arch.SetName(id, name)
+			if err := arch.SetName(id, name); err != nil {
+				return fmt.Errorf("broadsheet: stamp archive label %q: %w", id, err)
+			}
 		}
 	}
+	return nil
 }
 
 // getSources returns the active source set (an immutable snapshot).
@@ -523,15 +538,27 @@ func loadSources(st *store.Store, arch *archive.Store, logger *slog.Logger) ([]s
 	// history labeled; disabled papers, which never re-archive, are covered the
 	// same way. The reconciler keeps active papers' labels fresh on each Put.
 	names := map[string]string{}
-	if rows, err := st.ListSources(false); err == nil {
-		for _, r := range rows {
-			names[r.ID] = r.DisplayName
-		}
+	stored, err := st.ListSources(false)
+	if err != nil {
+		return nil, fmt.Errorf("broadsheet: list sources for archive labeling: %w", err)
+	}
+	for _, r := range stored {
+		names[r.ID] = r.DisplayName
 	}
 	for _, e := range entries {
 		names[e.ID] = e.Name
 	}
-	stampArchiveLabels(arch, names)
+	// If a label write fails, a paper about to be dropped this boot might lose the
+	// name it needs to keep its archived history readable — so skip the prune this
+	// boot rather than delete a row whose name we couldn't preserve. The upsert
+	// still runs; the prune retries on the next boot once the write succeeds.
+	prune := true
+	if err := stampArchiveLabels(arch, names); err != nil {
+		if logger != nil {
+			logger.Warn("archive label stamping failed; skipping catalog prune this boot", "err", err)
+		}
+		prune = false
+	}
 
 	rows := make([]store.SourceRow, 0, len(entries))
 	for i, e := range entries {
@@ -541,7 +568,7 @@ func loadSources(st *store.Store, arch *archive.Store, logger *slog.Logger) ([]s
 			Enabled: e.Default, Position: i,
 		})
 	}
-	if err := st.SeedSources(rows); err != nil {
+	if err := st.SeedSources(rows, prune); err != nil {
 		return nil, fmt.Errorf("broadsheet: seed sources: %w", err)
 	}
 	return loadEnabled(st, logger)

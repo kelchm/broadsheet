@@ -46,7 +46,7 @@ func TestSeedSources_RefreshesWiringButPreservesUserEnabled(t *testing.T) {
 		{ID: "b", DisplayName: "Paper B", ProviderType: "freedomforum",
 			ProviderConfig: json.RawMessage(`{"prefix":"B_B"}`), Enabled: false, Position: 2},
 	}
-	if err := s.SeedSources(rows); err != nil {
+	if err := s.SeedSources(rows, true); err != nil {
 		t.Fatalf("SeedSources: %v", err)
 	}
 	// The user enables b (b's catalog default is disabled) — their one choice.
@@ -65,7 +65,7 @@ func TestSeedSources_RefreshesWiringButPreservesUserEnabled(t *testing.T) {
 			ProviderConfig: json.RawMessage(`{"prefix":"B_B"}`), Enabled: false, Position: 2},
 		{ID: "c", DisplayName: "New Paper C", ProviderType: "freedomforum",
 			ProviderConfig: json.RawMessage(`{"prefix":"C_C"}`), Enabled: true, Position: 3},
-	}); err != nil {
+	}, true); err != nil {
 		t.Fatalf("re-seed: %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestSeedSources_PrunesDroppedPapers(t *testing.T) {
 			rows[i] = SourceRow{ID: id, DisplayName: id, ProviderType: "freedomforum",
 				ProviderConfig: json.RawMessage(`{"prefix":"X"}`), Position: i}
 		}
-		if err := s.SeedSources(rows); err != nil {
+		if err := s.SeedSources(rows, true); err != nil {
 			t.Fatalf("SeedSources(%v): %v", ids, err)
 		}
 	}
@@ -153,15 +153,42 @@ func TestSeedSources_EmptyCatalogNeverPrunes(t *testing.T) {
 	s := open(t)
 	if err := s.SeedSources([]SourceRow{
 		{ID: "a", DisplayName: "A", ProviderType: "freedomforum", ProviderConfig: json.RawMessage(`{"prefix":"A"}`)},
-	}); err != nil {
+	}, true); err != nil {
 		t.Fatalf("SeedSources: %v", err)
 	}
 	// A nil/empty seed is a no-op guard, not a table wipe.
-	if err := s.SeedSources(nil); err != nil {
-		t.Fatalf("SeedSources(nil): %v", err)
+	if err := s.SeedSources(nil, true); err != nil {
+		t.Fatalf("SeedSources(nil, true): %v", err)
 	}
 	if n, err := s.CountSources(); err != nil || n != 1 {
 		t.Fatalf("CountSources = %d, %v; want the row preserved", n, err)
+	}
+}
+
+func TestSeedSources_NoPruneKeepsDroppedRows(t *testing.T) {
+	s := open(t)
+	seed := func(prune bool, ids ...string) {
+		rows := make([]SourceRow, len(ids))
+		for i, id := range ids {
+			rows[i] = SourceRow{ID: id, DisplayName: id, ProviderType: "freedomforum",
+				ProviderConfig: json.RawMessage(`{"prefix":"X"}`), Position: i}
+		}
+		if err := s.SeedSources(rows, prune); err != nil {
+			t.Fatalf("SeedSources(%v, prune=%v): %v", ids, prune, err)
+		}
+	}
+	seed(true, "a", "b")
+	// prune=false: "b" left the catalog, but its row must survive (its archived
+	// name may not have been preserved yet — losing it is worse than a stale row).
+	seed(false, "a")
+	if all, _ := s.ListSources(false); len(all) != 2 {
+		t.Fatalf("got %d sources, want 2 (b retained under prune=false)", len(all))
+	}
+	// A later reconcile with prune=true actually drops it.
+	seed(true, "a")
+	all, _ := s.ListSources(false)
+	if len(all) != 1 || all[0].ID != "a" {
+		t.Fatalf("got %v, want just [a] after a pruning reconcile", all)
 	}
 }
 

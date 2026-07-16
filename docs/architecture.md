@@ -191,8 +191,9 @@ by a full-date folder (`/20260713/A01_SU_EZ_DAILY_20260713.pdf`) rather than a
 day-of-month. Two things make it different, both absorbed inside the provider:
 the front-page filename carries a zone code that rotates day to day between a
 small set (`SU`/`RE`) — the Post publishes exactly one per day, so a poll probes
-the candidates and takes whichever exists — and a missing object comes back as a
-`403` (S3 `AccessDenied`), not a `404`. Because the folder *is* the edition date,
+the candidates and takes whichever exists — and a missing object typically comes
+back as a `403` (S3 `AccessDenied`), though CloudFront may also 404. Because the
+folder *is* the edition date,
 that date is exact, so there's no `Last-Modified` guessing. (The upstream that
 does list the exact URL, the "today's paper" HTML page, is Akamai bot-protected
 and unreliable from a headless poller; the CDN itself is open and honors

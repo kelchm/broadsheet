@@ -157,7 +157,12 @@ type SourceRow struct {
 // added would prune those rows (they return, at their catalog default, on the
 // next upgrade). An empty catalog never prunes, so a caller passing nothing
 // can't wipe the table.
-func (s *Store) SeedSources(rows []SourceRow) error {
+//
+// When prune is false the drop step is skipped (upsert only). The caller uses
+// this to avoid deleting a dropped paper's row before its archived display name
+// was safely preserved — losing the name is worse than a stale row that the next
+// (pruning) boot cleans up.
+func (s *Store) SeedSources(rows []SourceRow, prune bool) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -214,20 +219,23 @@ func (s *Store) SeedSources(rows []SourceRow) error {
 
 	// Prune papers the catalog has dropped, plus their dependent state, so a
 	// removed source leaves nothing behind (a stale row would keep the reconciler
-	// polling a dead feed forever and clutter the catalog UI).
-	for id := range existing {
-		if incoming[id] {
-			continue
-		}
-		for _, stmt := range []string{
-			`DELETE FROM sources WHERE id = ?`,
-			`DELETE FROM provider_versions WHERE source_id = ?`,
-			`DELETE FROM fetch_events WHERE source_id = ?`,
-			`DELETE FROM crop_overrides WHERE source_id = ?`,
-		} {
-			if _, err := tx.Exec(stmt, id); err != nil {
-				_ = tx.Rollback()
-				return fmt.Errorf("store: prune source %s: %w", id, err)
+	// polling a dead feed forever and clutter the catalog UI). Skipped when the
+	// caller couldn't first preserve dropped papers' archived names.
+	if prune {
+		for id := range existing {
+			if incoming[id] {
+				continue
+			}
+			for _, stmt := range []string{
+				`DELETE FROM sources WHERE id = ?`,
+				`DELETE FROM provider_versions WHERE source_id = ?`,
+				`DELETE FROM fetch_events WHERE source_id = ?`,
+				`DELETE FROM crop_overrides WHERE source_id = ?`,
+			} {
+				if _, err := tx.Exec(stmt, id); err != nil {
+					_ = tx.Rollback()
+					return fmt.Errorf("store: prune source %s: %w", id, err)
+				}
 			}
 		}
 	}

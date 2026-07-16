@@ -65,6 +65,22 @@ func mediaFromExt(e string) source.MediaType {
 	}
 }
 
+// containsEdition reports whether any directory entry is a date-named edition
+// file (the sidecar label and write litter are not editions). Used by Prune to
+// decide whether a source directory still holds anything worth keeping.
+func containsEdition(entries []os.DirEntry) bool {
+	for _, f := range entries {
+		if f.IsDir() {
+			continue
+		}
+		name := f.Name()
+		if _, err := time.Parse(dateLayout, strings.TrimSuffix(name, filepath.Ext(name))); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Put writes an edition to the archive atomically and returns its entry. An
 // edition on a day we already hold is overwritten (a re-posted/corrected
 // edition wins).
@@ -233,11 +249,14 @@ func (s *Store) Prune(retention time.Duration, now time.Time) (int, error) {
 			}
 		}
 		// Reclaim a source directory once no editions remain — e.g. a paper the
-		// catalog dropped, whose editions have all aged out. RemoveAll also clears
-		// the display-name label and any write litter; an active source that Puts
-		// again just re-creates the directory (and re-writes its label).
-		if len(s.list(d.Name())) == 0 {
-			_ = os.RemoveAll(filepath.Join(s.Root, d.Name()))
+		// catalog dropped, whose editions have all aged out. Read the directory
+		// explicitly and skip on error: list() returns nil on ANY ReadDir failure,
+		// so keying off it alone could mistake a transient read error for "empty"
+		// and RemoveAll a still-populated directory. RemoveAll also clears the label
+		// and any write litter; an active source that Puts again re-creates the dir.
+		dir := filepath.Join(s.Root, d.Name())
+		if entries, err := os.ReadDir(dir); err == nil && !containsEdition(entries) {
+			_ = os.RemoveAll(dir)
 		}
 	}
 	return removed, nil
