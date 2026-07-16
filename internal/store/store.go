@@ -275,6 +275,30 @@ func (s *Store) CountSources() (int, error) {
 	return n, err
 }
 
+// CropOverride is a stored per-source crop box in normalized [0,1] coordinates.
+type CropOverride struct {
+	X, Y, W, H float64
+	Mode       string // auto | manual | approved
+	UpdatedAt  string // RFC3339Nano (timeLayout); an opaque cache token for callers
+}
+
+// GetCropOverride returns the stored crop box for a source, or ErrNotFound when
+// none is set. It's an explicit operator/precomputed box that takes precedence
+// over the engine's live auto-detector.
+func (s *Store) GetCropOverride(sourceID string) (CropOverride, error) {
+	var c CropOverride
+	err := s.db.QueryRow(
+		`SELECT x, y, w, h, mode, updated_at FROM crop_overrides WHERE source_id = ?`, sourceID,
+	).Scan(&c.X, &c.Y, &c.W, &c.H, &c.Mode, &c.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return CropOverride{}, ErrNotFound
+	}
+	if err != nil {
+		return CropOverride{}, fmt.Errorf("store: crop override %q: %w", sourceID, err)
+	}
+	return c, nil
+}
+
 // Versions returns the persisted provider version tokens for a source. Errors
 // degrade to an empty map — the worst case is an unconditional refetch.
 func (s *Store) Versions(sourceID string) map[string]string {

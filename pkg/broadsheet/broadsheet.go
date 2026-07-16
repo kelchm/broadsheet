@@ -43,6 +43,7 @@ import (
 	"github.com/kelchm/broadsheet/internal/buildinfo"
 	"github.com/kelchm/broadsheet/internal/cache"
 	"github.com/kelchm/broadsheet/internal/catalog"
+	"github.com/kelchm/broadsheet/internal/crop"
 	"github.com/kelchm/broadsheet/internal/reconcile"
 	"github.com/kelchm/broadsheet/internal/registry"
 	"github.com/kelchm/broadsheet/internal/render"
@@ -56,6 +57,10 @@ type Source = source.Source
 // CropHints carries per-source hints for the crop detector. Alias of the
 // internal canonical type.
 type CropHints = source.CropHints
+
+// CropBox is the normalized crop rectangle applied to a page before framing.
+// Alias of the internal canonical type; the zero value means "no crop".
+type CropBox = crop.Box
 
 // Version reports the broadsheet release version.
 func Version() string { return buildinfo.Version }
@@ -150,6 +155,12 @@ type Config struct {
 	// in-memory (resets on restart); provide a persistent one to survive it.
 	Cursors Cursors
 
+	// DisableCrop turns off the crop stage. Crop is on by default: every served
+	// page is trimmed to its content bounds (safe — whitespace/printer's-marks
+	// only; see internal/crop.ContentTrim) before framing. Set true to serve the
+	// full uncropped master.
+	DisableCrop bool
+
 	// Logger; if nil, slog.Default() is used.
 	Logger *slog.Logger
 }
@@ -194,6 +205,7 @@ type Result struct {
 	Width     int       // actual pixel width of Image
 	Height    int       // actual pixel height of Image
 	ETag      string    // strong validator over (source, edition, artifact mtime, render params), pre-quoted for HTTP
+	Crop      CropBox   // the normalized crop applied before framing (zero = none)
 }
 
 // Health describes the per-source health of the engine.
@@ -245,6 +257,13 @@ type Engine struct {
 	// variants memoizes small rendered outputs by content identity (the ETag),
 	// so thumbnail-heavy pages stop re-decoding masters on every image.
 	variants *variantCache
+
+	// cropEnabled gates the crop stage; cropper is the auto top/side/bottom
+	// detector applied to a decoded master before framing (a stored per-source
+	// override in the DB takes precedence — see resolveCrop). Only the top edge
+	// is a candidate for smarter detectors later; content-trim owns the rest.
+	cropEnabled bool
+	cropper     *crop.ContentTrim
 }
 
 // New constructs a Engine with the given config.
@@ -323,17 +342,19 @@ func New(cfg Config) (*Engine, error) {
 	}
 
 	p := &Engine{
-		cfg:        cfg,
-		sources:    srcs,
-		archive:    arch,
-		renderer:   render.New(),
-		store:      st,
-		cacheDir:   cacheDir,
-		cursors:    cursors,
-		now:        time.Now,
-		renderSem:  make(chan struct{}, 1),
-		composeSem: make(chan struct{}, 2),
-		variants:   newVariantCache(128, 256<<10),
+		cfg:         cfg,
+		sources:     srcs,
+		archive:     arch,
+		renderer:    render.New(),
+		store:       st,
+		cacheDir:    cacheDir,
+		cursors:     cursors,
+		now:         time.Now,
+		renderSem:   make(chan struct{}, 1),
+		composeSem:  make(chan struct{}, 2),
+		variants:    newVariantCache(128, 256<<10),
+		cropEnabled: !cfg.DisableCrop,
+		cropper:     crop.NewContentTrim(),
 	}
 	p.reconciler = &reconcile.Reconciler{
 		SourcesFn: p.getSources, // live view: enable/disable applies next cycle
@@ -814,10 +835,16 @@ func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opt
 		daysOld = 0
 	}
 
+	// Resolve the crop plan up front so its identity folds into the ETag. Auto
+	// detection is deterministic in the master bytes (the render mtime already in
+	// the ETag pins them), so a version token suffices; a stored override carries
+	// its own updated_at token.
+	plan := p.resolveCrop(entry.SourceID)
+
 	// The ETag is the full content identity (edition + render mtime + build +
-	// params), so it doubles as the variant-cache key: a thumbnail-heavy page
-	// hits here instead of re-decoding the master per image.
-	etag := contentETag(entry, pngInfo.ModTime(), master, opts)
+	// params + crop), so it doubles as the variant-cache key: a thumbnail-heavy
+	// page hits here instead of re-decoding and re-cropping the master per image.
+	etag := contentETag(entry, pngInfo.ModTime(), master, opts, plan.token)
 	if cached, ok := p.variants.get(etag); ok {
 		out := *cached
 		out.Stale = stale
@@ -843,6 +870,23 @@ func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opt
 		return nil, fmt.Errorf("broadsheet: decode render: %w", err)
 	}
 
+	// Crop the decoded master before framing. A stored override wins; otherwise
+	// the auto detector runs. A full/empty box is a no-op, so the page passes
+	// through unchanged when there's nothing to trim.
+	var applied crop.Box
+	if plan.enabled {
+		box := plan.box
+		if !plan.fromDB {
+			if b, found, derr := p.cropper.Detect(ctx, page, crop.Hints{}); derr == nil && found {
+				box = b
+			}
+		}
+		if !box.IsEffectivelyFull() {
+			page = box.Apply(page)
+			applied = box.Clamp()
+		}
+	}
+
 	out := compose(page, opts, master)
 	var buf bytes.Buffer
 	if err := imaging.Encode(&buf, out, imaging.PNG); err != nil {
@@ -858,9 +902,42 @@ func (p *Engine) serve(ctx context.Context, entry archive.Entry, stale bool, opt
 		Width:     out.Bounds().Dx(),
 		Height:    out.Bounds().Dy(),
 		ETag:      etag,
+		Crop:      applied,
 	}
 	p.variants.put(etag, res)
 	return res, nil
+}
+
+// cropPlan is the crop decision for one serve, resolved before decode so its
+// identity can fold into the ETag. When fromDB is set the box is already known
+// (a stored override); otherwise the box is left zero and the auto detector
+// fills it in after the master is decoded.
+type cropPlan struct {
+	enabled bool
+	fromDB  bool
+	box     crop.Box
+	token   string
+}
+
+// resolveCrop decides how (and whether) to crop a source's pages. A stored
+// per-source override takes precedence over the live auto-detector; both fold a
+// stable token into the ETag so a re-crop invalidates client and variant caches.
+func (p *Engine) resolveCrop(sourceID string) cropPlan {
+	if !p.cropEnabled {
+		return cropPlan{token: "off"}
+	}
+	if ov, err := p.store.GetCropOverride(sourceID); err == nil {
+		return cropPlan{
+			enabled: true,
+			fromDB:  true,
+			box:     crop.Box{X: ov.X, Y: ov.Y, W: ov.W, H: ov.H}.Clamp(),
+			token:   "db:" + ov.UpdatedAt,
+		}
+	} else if !errors.Is(err, store.ErrNotFound) {
+		// A real store error: fall back to auto rather than failing the render.
+		p.cfg.Logger.Warn("crop override lookup failed; using auto", "source", sourceID, "err", err)
+	}
+	return cropPlan{enabled: true, token: "auto:" + crop.AlgoVersion}
 }
 
 // variantCache is a small bounded FIFO memo of rendered outputs, keyed by
@@ -911,14 +988,15 @@ func (c *variantCache) put(key string, r *Result) {
 // response bytes: the edition identity (source + date + the served render's
 // mtime, which is stamped from the artifact it was rendered from — a corrected
 // edition changes it), the build version (render-code changes must invalidate
-// client caches), the master width, and the framing parameters. Pre-quoted for
-// direct use as an HTTP ETag.
-func contentETag(entry archive.Entry, renderMtime time.Time, master int, opts RenderOptions) string {
+// client caches), the master width, the framing parameters, and the crop token
+// (a detector-version or override-updated_at string, so a re-crop invalidates
+// caches). Pre-quoted for direct use as an HTTP ETag.
+func contentETag(entry archive.Entry, renderMtime time.Time, master int, opts RenderOptions, cropToken string) string {
 	h := fnv.New64a()
-	_, _ = fmt.Fprintf(h, "%s|%s|%d|%s|%d|%d|%d|%s|%g",
+	_, _ = fmt.Fprintf(h, "%s|%s|%d|%s|%d|%d|%d|%s|%g|%s",
 		entry.SourceID, entry.Date.UTC().Format("20060102"), renderMtime.UnixNano(),
 		buildinfo.Version,
-		master, opts.OutputWidth, opts.OutputHeight, opts.Fit, opts.MarginPct)
+		master, opts.OutputWidth, opts.OutputHeight, opts.Fit, opts.MarginPct, cropToken)
 	return fmt.Sprintf("%q", strconv.FormatUint(h.Sum64(), 16))
 }
 

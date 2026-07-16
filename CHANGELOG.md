@@ -6,6 +6,24 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added: content-aware cropping
+
+Served pages are now trimmed to their content bounds before framing
+(`internal/crop`). The default `content-trim` detector removes whitespace
+margins and steps over top-bleed printer's marks (registration / CMYK bars,
+plate-ident codes) — safely: it only ever removes rows/columns with no content,
+so it can never cut into the page. It does **not** yet remove ad or promo
+skyboxes above the masthead; the crop seam is built so a smarter top-edge
+detector plugs in later.
+
+- On by default. `BROADSHEET_CROP=off` restores full, uncropped pages.
+- The applied box is echoed in the `X-Broadsheet-Crop` response header and folded
+  into the ETag (so a re-crop invalidates caches). A stored per-source
+  `crop_overrides` box takes precedence over the auto-detector.
+- **Behavior change:** existing deployments start serving cropped pages on
+  upgrade. It's safe (whitespace and printer's-marks only); set
+  `BROADSHEET_CROP=off` to keep full pages.
+
 ### Renamed: paperboy is now broadsheet
 
 The project, module path (`github.com/kelchm/broadsheet`), binaries
